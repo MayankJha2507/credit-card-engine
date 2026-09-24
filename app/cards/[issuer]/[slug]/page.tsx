@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { AnalyticsView } from '@/components/analytics-view';
 import { CardVisual } from '@/components/cards/card-visual';
+import { OfficialLink } from '@/components/recommendations/official-link';
 import { Badge } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
 import { effectiveRate } from '@/lib/calculations/engine';
@@ -97,7 +98,15 @@ export default async function CardDetailPage({ params }: { params: Promise<{ iss
           </p>
           </div>
         </div>
-        <ButtonLink href="/recommend" variant="secondary">See if it fits your spending</ButtonLink>
+        <div className="flex flex-col items-stretch gap-2">
+          <OfficialLink
+            url={sources.find((s) => s.sourceType === 'issuer_official')?.sourceUrl ?? sources[0]?.sourceUrl ?? null}
+            issuer={card.issuer}
+            cardName={card.name}
+            label={`Go to ${card.issuer}`}
+          />
+          <ButtonLink href="/recommend" variant="secondary">See if it fits your spending</ButtonLink>
+        </div>
       </header>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">

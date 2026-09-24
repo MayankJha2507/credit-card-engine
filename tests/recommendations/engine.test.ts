@@ -90,3 +90,21 @@ describe('recommend', () => {
     expect(r.matches[0].reasons.join(' ')).toMatch(/₹/);
   });
 });
+
+describe('official issuer link', () => {
+  it('carries the issuer source URL through to each match', () => {
+    const card = cashbackCard('WITHSRC', 2, 0);
+    card.sources = [{
+      id: 's1', cardId: 'WITHSRC', sourceType: 'issuer_official',
+      sourceUrl: 'https://issuer.example.com/card', sourceTitle: 'Official page',
+      fieldsCovered: ['fees'], accessedAt: '2026-09-15', reliabilityTier: 'High',
+    }];
+    const r = recommend([card], baseProfile);
+    expect(r.matches[0].officialUrl).toBe('https://issuer.example.com/card');
+  });
+
+  it('is null when no source is recorded, so the UI can say so', () => {
+    const r = recommend([cashbackCard('NOSRC', 2, 0)], baseProfile);
+    expect(r.matches[0].officialUrl).toBeNull();
+  });
+});

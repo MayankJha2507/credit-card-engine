@@ -18,6 +18,8 @@ export interface PreferenceMatch {
 export interface ScoredCard {
   card: CardWithRules['card'];
   valuation: CardValuation;
+  /** Issuer's official product page, for "apply on the issuer's site". */
+  officialUrl: string | null;
   preferenceMatches: PreferenceMatch[];
   preferenceScore: number;   // 0..1, share of the user's weighted priorities that are met
   valueRank: number;         // 1-based rank on net annual value
@@ -156,6 +158,7 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
     return {
       card: e.card,
       valuation,
+      officialUrl: e.sources.find((s) => s.sourceType === 'issuer_official')?.sourceUrl ?? e.sources[0]?.sourceUrl ?? null,
       preferenceMatches: matches,
       preferenceScore: totalWeight === 0 ? 0 : metWeight / totalWeight,
       valueRank: 0,

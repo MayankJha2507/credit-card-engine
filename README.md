@@ -139,6 +139,18 @@ workbook are mapped onto them by the keyword table in `lib/data/parse.ts`.
 
 ---
 
+## Comparison and issuer links
+
+The results page has a **Compare all 3** toggle that switches the matches into a
+side-by-side table. Rows where every card says the same thing are dimmed, and a
+marker calls out the highest or lowest figure in rows where better is objectively
+defined (more value, lower cost) — never an overall winner.
+
+Every card carries a link to the **issuer's own product page** — the same URL its
+data was verified against — on the result card, in the comparison table and at the
+top of the card detail page. These are plain outbound links, not affiliate or
+application links, and they open in a new tab.
+
 ## Testing and evals
 
 * `tests/` — unit tests for the parsers, the calculation engine (annualisation,

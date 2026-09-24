@@ -15,6 +15,7 @@ export const ANALYTICS_EVENTS = [
   'card_detail_viewed',
   'browse_cards',
   'comparison_started',
+  'official_site_clicked',
 ] as const;
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];

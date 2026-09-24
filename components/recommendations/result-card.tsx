@@ -7,6 +7,7 @@ import { track } from '@/lib/analytics';
 import { CalculationBreakdown } from './calculation-breakdown';
 import { loungeVisitsLabel } from '@/lib/data/types';
 import { CardVisual } from '@/components/cards/card-visual';
+import { OfficialLink } from './official-link';
 
 export function ResultCard({ match, rank }: { match: ScoredCard; rank: number }) {
   const { card, valuation } = match;
@@ -35,6 +36,11 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
         </div>
         <Badge tone="brand">Match {rank}</Badge>
       </div>
+
+      <p className="mt-4 text-sm text-ink-muted">
+        Apply or read the full terms on the issuer&apos;s own site —{' '}
+        <OfficialLink url={match.officialUrl} issuer={card.issuer} cardName={card.name} variant="inline" label={`${card.issuer} official page`} />
+      </p>
 
       {preferenceLed ? (
         <p className="mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
@@ -92,13 +98,16 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="text-xs text-ink-muted">Last verified: {formatDate(card.lastVerifiedAt)} · {card.dataConfidence}</p>
-        <Link
-          href={href}
-          onClick={() => track('recommendation_clicked', { card: card.name, rank })}
-          className="rounded-xl border border-line px-4 py-2 text-sm font-medium hover:bg-canvas"
-        >
-          View card details
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={href}
+            onClick={() => track('recommendation_clicked', { card: card.name, rank })}
+            className="rounded-xl border border-line px-4 py-2 text-sm font-medium hover:bg-canvas"
+          >
+            View card details
+          </Link>
+          <OfficialLink url={match.officialUrl} issuer={card.issuer} cardName={card.name} className="h-10 px-4" label={`Go to ${card.issuer}`} />
+        </div>
       </div>
     </article>
   );

@@ -7,6 +7,7 @@ import type { ScoredCard } from '@/lib/recommendations/engine';
 import type { SpendCategory } from '@/lib/data/types';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
+import { ComparisonTable } from '@/components/recommendations/comparison-table';
 import { PreferencesStep } from './preferences-step';
 import { SpendStep } from './spend-step';
 
@@ -31,6 +32,7 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
   const [loungeImportance, setLoungeImportance] = useState<LoungeImportance>('nice_to_have');
   const [result, setResult] = useState<ApiResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<'cards' | 'compare'>('cards');
   const [error, setError] = useState<string | null>(null);
 
   const markStarted = () => {
@@ -50,6 +52,7 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
       if (!res.ok) throw new Error('We could not calculate recommendations. Please try again.');
       const data = (await res.json()) as ApiResult;
       setResult(data);
+      setView('cards');
       setStep(2);
       track('questionnaire_completed', { priorities: priorities.length, feeBand, internationalTravel });
       track('recommendation_viewed', { matches: data.matches.length });
@@ -105,16 +108,48 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
 
         {step === 2 && result ? (
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight">Your strongest matches</h2>
-            <p className="mt-2 text-sm text-ink-muted">
-              Based on your inputs and the {result.poolSize} verified cards we compared. Recommendations are based on
-              cards currently available in our database, not the whole Indian card market.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-semibold tracking-tight">Your strongest matches</h2>
+                <p className="mt-2 max-w-xl text-sm text-ink-muted">
+                  Based on your inputs and the {result.poolSize} verified cards we compared. Recommendations are based on
+                  cards currently available in our database, not the whole Indian card market.
+                </p>
+              </div>
+
+              {result.matches.length > 1 ? (
+                <div className="flex rounded-xl border border-line bg-surface p-1" role="group" aria-label="Result view">
+                  <button
+                    type="button"
+                    onClick={() => setView('cards')}
+                    aria-pressed={view === 'cards'}
+                    className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                      view === 'cards' ? 'bg-ink text-white' : 'text-ink-muted hover:text-ink')}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setView('compare');
+                      track('comparison_started', { cards: result.matches.length });
+                    }}
+                    aria-pressed={view === 'compare'}
+                    className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                      view === 'compare' ? 'bg-ink text-white' : 'text-ink-muted hover:text-ink')}
+                  >
+                    Compare all {result.matches.length}
+                  </button>
+                </div>
+              ) : null}
+            </div>
 
             {result.matches.length === 0 ? (
               <p className="mt-8 surface-card p-6 text-sm text-ink-muted">
                 No card in our database fits those constraints. Try widening the annual fee preference.
               </p>
+            ) : view === 'compare' ? (
+              <ComparisonTable matches={result.matches} />
             ) : (
               <div className="mt-8 space-y-6">
                 {result.matches.map((m, i) => <ResultCard key={m.card.id} match={m} rank={i + 1} />)}
