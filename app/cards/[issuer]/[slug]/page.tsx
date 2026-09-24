@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { AnalyticsView } from '@/components/analytics-view';
+import { CardVisual } from '@/components/cards/card-visual';
 import { Badge } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
 import { effectiveRate } from '@/lib/calculations/engine';
@@ -75,7 +76,12 @@ export default async function CardDetailPage({ params }: { params: Promise<{ iss
       </nav>
 
       <header className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="flex flex-wrap items-start gap-5">
+          <CardVisual
+            issuer={card.issuer} issuerSlug={card.issuerSlug} name={card.name}
+            network={card.network} variant={card.variant} cardType={card.cardType} size="lg"
+          />
+          <div>
           <p className="text-sm font-medium uppercase tracking-wide text-ink-muted">{card.issuer}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{card.name}</h1>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -85,6 +91,10 @@ export default async function CardDetailPage({ params }: { params: Promise<{ iss
             <Badge tone={card.applicationAvailable ? 'positive' : 'warning'}>
               {card.applicationAvailable ? 'Open for applications' : 'Not open for applications'}
             </Badge>
+          </div>
+          <p className="mt-3 max-w-md text-xs text-ink-muted">
+            Card artwork shown is a generated representation, not the issuer&apos;s own image.
+          </p>
           </div>
         </div>
         <ButtonLink href="/recommend" variant="secondary">See if it fits your spending</ButtonLink>

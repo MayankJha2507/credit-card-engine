@@ -6,6 +6,7 @@ import { formatDate, formatINR } from '@/lib/utils';
 import { track } from '@/lib/analytics';
 import { CalculationBreakdown } from './calculation-breakdown';
 import { loungeVisitsLabel } from '@/lib/data/types';
+import { CardVisual } from '@/components/cards/card-visual';
 
 export function ResultCard({ match, rank }: { match: ScoredCard; rank: number }) {
   const { card, valuation } = match;
@@ -15,7 +16,13 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
   return (
     <article className="surface-card p-6 sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex gap-4">
+          <CardVisual
+            issuer={card.issuer} issuerSlug={card.issuerSlug} name={card.name}
+            network={card.network} variant={card.variant} cardType={card.cardType}
+            size="md" className="hidden sm:block"
+          />
+          <div>
           <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{card.issuer}</p>
           <h3 className="mt-1 text-xl font-semibold tracking-tight">{card.name}</h3>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -23,6 +30,7 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
             {card.network ? <Badge>{card.network}</Badge> : null}
             {valuation.feeWaived && valuation.annualFee > 0 ? <Badge tone="positive">Fee waived at your spend</Badge> : null}
             {card.annualFee === 0 ? <Badge tone="positive">No annual fee</Badge> : null}
+          </div>
           </div>
         </div>
         <Badge tone="brand">Match {rank}</Badge>

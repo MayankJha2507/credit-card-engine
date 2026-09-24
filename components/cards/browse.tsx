@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { BrowseRow } from './browse-rows';
+import { CardVisual } from './card-visual';
 import { formatDate, formatINR, formatPercent, cn } from '@/lib/utils';
 import { track } from '@/lib/analytics';
 
@@ -97,8 +98,16 @@ export function BrowseCards({ rows }: { rows: BrowseRow[] }) {
         {visible.map((r) => (
           <Link key={r.id} href={`/cards/${r.issuerSlug}/${r.slug}`} onClick={() => track('card_detail_viewed', { card: r.name, from: 'browse' })}
             className="surface-card block p-5 transition-shadow hover:shadow-lift">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{r.issuer}</p>
-            <h3 className="mt-1 font-semibold">{r.name}</h3>
+            <div className="flex gap-4">
+              <CardVisual
+                issuer={r.issuer} issuerSlug={r.issuerSlug} name={r.name}
+                network={r.network} variant={r.variant} cardType={r.cardType} size="sm"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">{r.issuer}</p>
+                <h3 className="mt-1 font-semibold">{r.name}</h3>
+              </div>
+            </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {r.variant ? <Badge>{r.variant}</Badge> : null}
               {r.lounge ? <Badge>Lounge</Badge> : null}
