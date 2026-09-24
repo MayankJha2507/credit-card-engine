@@ -97,5 +97,17 @@ export interface CardValuation {
   /** annualRewardValue − annualFeeAfterWaiver − forexCost */
   netAnnualValue: number;
   restrictions: string[];
+  /**
+   * Limits of the source data that affect how much this estimate can be trusted,
+   * e.g. a cap the card states but does not quantify. Shown to the user; never
+   * silently absorbed into the numbers.
+   */
+  dataCaveats: string[];
+  /**
+   * True when the card states a cap it does not quantify, so the reward figure
+   * is an upper bound rather than an estimate. The UI says "up to" instead of
+   * presenting it as a firm number.
+   */
+  isUpperBound: boolean;
   loungeSummary: { domestic: string | null; international: string | null; condition: string | null };
 }

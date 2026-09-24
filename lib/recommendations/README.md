@@ -59,14 +59,34 @@ the annual figure.
 * **No rupee value for lounge access**, milestones, insurance, concierge, golf or
   any other lifestyle benefit. These are shown qualitatively. Assigning them a
   number would be fabricated precision that changes the ranking.
-* **No guessed point valuations.** If the workbook does not state a rupee value
-  per point (for example "1 EDGE Mile = 2 Partner Miles"), those rewards are
-  reported as *non-monetizable*: the card keeps its place in the pool, the user
+* **No guessed point valuations.** Where a card states a *range* ("1 RP = ₹0.20
+  – ₹1.00 depending on category"), the engine uses the **lowest stated value**.
+  That is a published number rather than an estimate, and it keeps the figure
+  conservative instead of flattering the card; the UI says which rate was used.
+  If the workbook states no rupee value at all (for example "1 EDGE Mile = 2
+  Partner Miles"), those rewards are reported as *non-monetizable*: the card keeps its place in the pool, the user
   is told the value could not be derived, and nothing is invented. The same
   applies to earn rates expressed only as a multiplier with no absolute base
   (for example "3X Reward Points on offline spends").
 * **No extrapolation across categories.** A category with no applicable rule
   earns ₹0 and is labelled as such.
+
+## Step 3b — Lounge access when the user calls it important
+
+"Important" is treated as a requirement, not a preference: cards with no
+complimentary lounge access are removed and listed in `excluded` with that
+reason. If fewer than three cards survive, the requirement is dropped rather
+than returning an empty result, and `loungeFilterApplied` reports which happened
+so the UI can say so. "Nice to have" stays a weighted tie-break.
+
+## Step 3c — Estimates versus upper bounds
+
+Some cards state a cap without an amount ("Monthly category cap applies"). The
+cap cannot be applied, so the reward figure for those cards is an **upper
+bound**, not an estimate. The engine marks them `isUpperBound`, the UI writes
+"up to ₹X", and the caveat names the exact cap text. Where two cards are
+otherwise equal on value and fit, the one whose figure is derived from
+quantified terms ranks first — a vaguer source should not win a comparison.
 
 ## Step 4 — Ranking
 

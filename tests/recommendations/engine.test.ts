@@ -108,3 +108,50 @@ describe('official issuer link', () => {
     expect(r.matches[0].officialUrl).toBeNull();
   });
 });
+
+describe('estimate quality', () => {
+  const upperBound = () => {
+    const e = cashbackCard('VAGUE', 3, 0, { name: 'VAGUE', rewardCapsRaw: 'Monthly category cap applies' });
+    return e;
+  };
+
+  it('treats a stated-but-unquantified cap as an upper bound, not an estimate', () => {
+    const r = recommend([upperBound()], baseProfile);
+    expect(r.matches[0].valuation.isUpperBound).toBe(true);
+    expect(r.matches[0].valuation.dataCaveats.join(' ')).toMatch(/upper bound/i);
+    expect(r.matches[0].cautions.join(' ')).toMatch(/upper bound/i);
+  });
+
+  it('prefers a firm estimate over an upper bound of comparable value', () => {
+    const firm = cashbackCard('FIRM', 3, 0);
+    const r = recommend([upperBound(), firm], { ...baseProfile, priorities: ['cashback'] });
+    expect(r.matches[0].card.id).toBe('FIRM');
+  });
+});
+
+describe('lounge access when the user says it is important', () => {
+  const withLounge = (id: string) =>
+    cashbackCard(id, 1, 0, { name: id, domesticLounge: '8 visits/year', domesticLoungeVisits: 8 });
+
+  it('requires lounge access rather than merely preferring it', () => {
+    const pool = [cashbackCard('RICH', 10, 0), withLounge('L1'), withLounge('L2'), withLounge('L3')];
+    const r = recommend(pool, { ...baseProfile, loungeImportance: 'important' });
+    expect(r.loungeFilterApplied).toBe(true);
+    expect(r.matches.every((m) => (m.card.domesticLoungeVisits ?? 0) > 0)).toBe(true);
+    expect(r.excluded.some((e) => e.cardId === 'RICH')).toBe(true);
+  });
+
+  it('drops the requirement rather than returning nothing when too few cards have lounge', () => {
+    const pool = [cashbackCard('A', 2, 0), cashbackCard('B', 1, 0), withLounge('L1')];
+    const r = recommend(pool, { ...baseProfile, loungeImportance: 'important' });
+    expect(r.loungeFilterApplied).toBe(false);
+    expect(r.matches.length).toBe(3);
+  });
+
+  it('leaves lounge as a tie-break when it is only nice to have', () => {
+    const pool = [cashbackCard('RICH', 10, 0), withLounge('L1'), withLounge('L2'), withLounge('L3')];
+    const r = recommend(pool, { ...baseProfile, loungeImportance: 'nice_to_have' });
+    expect(r.loungeFilterApplied).toBe(false);
+    expect(r.matches[0].card.id).toBe('RICH');
+  });
+});

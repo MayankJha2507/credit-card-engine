@@ -38,13 +38,20 @@ const ROWS: Row[] = [
     group: 'Value for your spending', label: 'Estimated annual rewards', better: 'higher',
     num: (m) => m.valuation.annualRewardValue,
     key: (m) => String(m.valuation.annualRewardValue),
-    render: (m) => (m.valuation.hasUnmonetizableRewards && m.valuation.annualRewardValue === 0 ? 'Not valued' : formatINR(m.valuation.annualRewardValue)),
+    render: (m) =>
+      m.valuation.hasUnmonetizableRewards && m.valuation.annualRewardValue === 0
+        ? 'Not valued'
+        : `${m.valuation.isUpperBound ? 'Up to ' : ''}${formatINR(m.valuation.annualRewardValue)}`,
   },
   {
     group: 'Value for your spending', label: 'Estimated net annual value', better: 'higher',
     num: (m) => m.valuation.netAnnualValue,
     key: (m) => String(m.valuation.netAnnualValue),
-    render: (m) => <span className="font-semibold text-emerald-700">{formatINR(m.valuation.netAnnualValue)}</span>,
+    render: (m) => (
+      <span className="font-semibold text-emerald-700">
+        {m.valuation.isUpperBound ? 'Up to ' : ''}{formatINR(m.valuation.netAnnualValue)}
+      </span>
+    ),
   },
   {
     group: 'Value for your spending', label: 'Where it earns most', better: null,
@@ -118,6 +125,15 @@ const ROWS: Row[] = [
         {m.card.minimumIncome ? `${formatINR(m.card.minimumIncome)}/month income` : 'Income not recorded'}
         {m.card.relationshipRequirement ? ` · ${m.card.relationshipRequirement}` : ''}
       </span>
+    ),
+  },
+  {
+    group: 'Data', label: 'Estimate confidence', better: null,
+    num: () => null, key: (m) => m.valuation.dataCaveats.join('|') || 'firm',
+    render: (m) => (
+      m.valuation.dataCaveats.length === 0
+        ? <span className="text-xs text-emerald-700">Every figure is derived from quantified terms</span>
+        : <ul className="space-y-1 text-xs text-amber-700">{m.valuation.dataCaveats.map((c) => <li key={c}>· {c}</li>)}</ul>
     ),
   },
   {

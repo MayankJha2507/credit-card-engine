@@ -111,6 +111,14 @@ export function CalculationBreakdown({ valuation, cardName }: { valuation: CardV
                 Some rewards on this card could not be converted to rupees from verified sources, so they are not included above.
               </p>
             ) : null}
+            {valuation.dataCaveats.length > 0 ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <p className="text-xs font-semibold text-amber-800">How far to trust this estimate</p>
+                <ul className="mt-1 space-y-1 text-xs text-amber-700">
+                  {valuation.dataCaveats.map((c) => <li key={c}>· {c}</li>)}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

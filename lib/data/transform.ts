@@ -8,6 +8,7 @@
 import {
   categoriesFromText,
   isBlank,
+  isGeneralScope,
   parseCaps,
   parseDate,
   parseEarnRate,
@@ -153,7 +154,8 @@ export function transformRow(row: WorkbookRow): TransformResult {
   const srcId = sources[0]?.id ?? null;
 
   /* ---------------- redemption ---------------- */
-  const pointValue = parsePointValue(card.redemptionRatioRaw);
+  const redemption = parsePointValue(card.redemptionRatioRaw);
+  const pointValue = redemption?.value ?? null;
   if (card.redemptionRatioRaw) {
     rules.push({
       id: ruleId('redemption'),
@@ -163,12 +165,17 @@ export function transformRow(row: WorkbookRow): TransformResult {
       value: pointValue,
       unit: pointValue === null ? null : 'inr',
       perAmount: null,
-      condition: null,
+      condition: redemption?.isRange
+        ? `Source states ₹${redemption.low} to ₹${redemption.high} per point depending on redemption; the lowest stated value is used`
+        : null,
       cap: null,
       notes: pointValue === null ? 'Rupee value per point not stated in verified sources' : null,
       sourceId: srcId,
       raw: card.redemptionRatioRaw,
     });
+    if (redemption?.isRange) {
+      warn('Redemption Ratio Raw', `Redemption value is a range (₹${redemption.low}–₹${redemption.high} per point); rewards are valued at the lowest stated rate`);
+    }
   }
 
   /* ---------------- base earn ---------------- */
@@ -233,7 +240,7 @@ export function transformRow(row: WorkbookRow): TransformResult {
   const caps = parseCaps(card.rewardCapsRaw);
   for (const clause of splitClauses(card.acceleratedRateRaw)) {
     const rate = parseEarnRate(clause);
-    const cats = categoriesFromText(clause).filter((c) => c !== 'other');
+    const cats = categoriesFromText(clause);
     const condition = extractCondition(clause);
     const cap = chooseBindingCap(caps, clause, pointValue);
 
@@ -243,13 +250,30 @@ export function transformRow(row: WorkbookRow): TransformResult {
       continue;
     }
     if (cats.length === 0) {
-      rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'No spend category could be resolved from the source text'));
-      warn('Accelerated Earn Rate Raw', `No category resolved for: "${clause}"`);
+      const reason = isGeneralScope(clause)
+        ? 'Rate is stated for spending in general, with no category we can attribute it to'
+        : 'No spend category could be resolved from the source text';
+      rules.push(unresolved(ruleId('accel'), id, clause, srcId, reason));
+      warn('Accelerated Earn Rate Raw', `${reason}: "${clause}"`);
       continue;
     }
 
     if (rate.kind === 'points') {
       rules.push(mk(ruleId('accel'), id, 'accelerated_reward', cats, rate.points, 'points', rate.perAmount, condition, cap, srcId, clause));
+    } else if (rate.kind === 'points_unanchored') {
+      // "15 RPs on Air India Tickets" states a count but no spend increment.
+      // Anchor it to the card's own base increment, the way a multiplier is
+      // anchored; without an absolute base there is nothing to anchor to.
+      if (baseRule && baseRule.unit === 'points' && baseRule.perAmount !== null) {
+        rules.push(mk(
+          ruleId('accel'), id, 'accelerated_reward', cats, rate.points, 'points', baseRule.perAmount,
+          [condition, `Spend increment taken from the card's base rate (per ₹${baseRule.perAmount})`].filter(Boolean).join(' · '),
+          cap, srcId, clause,
+        ));
+      } else {
+        rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'Point count stated with no spend increment, and no absolute base rate to anchor it to'));
+        warn('Accelerated Earn Rate Raw', `No spend increment to anchor: "${clause}"`);
+      }
     } else if (rate.kind === 'cashback') {
       rules.push(mk(ruleId('accel'), id, 'accelerated_reward', cats, rate.percent, 'cashback_percent', null, condition, cap, srcId, clause));
     } else {
@@ -290,7 +314,7 @@ export function transformRow(row: WorkbookRow): TransformResult {
   }
   if (card.rewardCapsRaw && caps.length === 0 && !/\bno\s+(?:upper\s+|overall\s+)?cap\b/i.test(card.rewardCapsRaw)) {
     warn('Reward Caps', `Cap text present but not machine-resolvable: "${card.rewardCapsRaw}"`);
-    rules.push(unresolved(ruleId('cap'), id, card.rewardCapsRaw, srcId, 'Cap not machine-resolvable'));
+    rules.push(unresolved(ruleId('cap'), id, card.rewardCapsRaw, srcId, 'Cap not machine-resolvable', 'reward_cap'));
   }
 
   /* ---------------- exclusions ---------------- */
@@ -343,6 +367,26 @@ export function transformRow(row: WorkbookRow): TransformResult {
     });
   }
 
+  /* ---------------- cross-field consistency ---------------- */
+  // An accelerated category that the same card also excludes cannot both be true.
+  for (const r of rules.filter((x) => x.ruleType === 'accelerated_reward' && x.value !== null)) {
+    const clash = r.categories.filter((c) => excl.categories.includes(c));
+    if (clash.length) {
+      warn('Accelerated Earn Rate Raw', `"${r.raw}" awards rewards on ${clash.join(', ')}, which this card also lists as excluded — the exclusion is applied`);
+    }
+  }
+
+  // "Waived on annual spend >= ₹10 Lakhs" alongside a ₹1,00,00,000 threshold is
+  // a contradiction in the source; the numeric threshold column is used.
+  const conditionAmount = parseMoney(card.annualFeeWaiverCondition);
+  if (
+    card.annualFeeWaiverThreshold !== null &&
+    conditionAmount !== null &&
+    Math.abs(conditionAmount - card.annualFeeWaiverThreshold) > 1
+  ) {
+    warn('Fee Waiver Threshold', `Threshold column says ₹${card.annualFeeWaiverThreshold.toLocaleString('en-IN')} but the condition text says ₹${conditionAmount.toLocaleString('en-IN')}; the threshold column is used`);
+  }
+
   return { entry: { card, rules, sources }, warnings };
 }
 
@@ -354,9 +398,13 @@ function mk(
   return { id, cardId, ruleType, categories, value, unit, perAmount, condition, cap, notes: null, sourceId, raw };
 }
 
-function unresolved(id: string, cardId: string, raw: string, sourceId: string | null, notes: string): CardRule {
+/** Records text we could not resolve, under the rule type it actually belongs to. */
+function unresolved(
+  id: string, cardId: string, raw: string, sourceId: string | null, notes: string,
+  ruleType: CardRule['ruleType'] = 'accelerated_reward',
+): CardRule {
   return {
-    id, cardId, ruleType: 'accelerated_reward', categories: [], value: null, unit: null,
+    id, cardId, ruleType, categories: [], value: null, unit: null,
     perAmount: null, condition: null, cap: null, notes, sourceId, raw,
   };
 }

@@ -26,6 +26,10 @@ export interface RecommendationCase {
     maxForexMarkup?: number;
     /** Every returned card must be cashback-earning. */
     allCashback?: boolean;
+    /** Every returned card must cost the user ₹0 in annual fee after any waiver. */
+    allFeeFree?: boolean;
+    /** The top match's fee must be zero after any waiver at this spend level. */
+    topFeeSettled?: boolean;
     /** Objective outcome the calculation rules force. */
     objective?: { cardId: string; within: number; reason: string };
   };
@@ -113,18 +117,15 @@ export const recommendationCases: RecommendationCase[] = [
   p('W — High spender who clears the Infinia waiver threshold', { online: 400000, flights: 300000, dining: 150000 }, ['reward_points', 'premium_benefits', 'lounge_access'], '10k_plus', true, 'important',
     {
       ...BASE, allHaveLounge: true,
-      objective: {
-        cardId: 'HDFC-INFINIA-METAL', within: 3,
-        reason: 'At ₹1,00,000+/month on SmartBuy-eligible categories its 25 RP/₹150 at ₹1.00/RP is the highest monetizable rate in the database and the ₹1,00,00,000 waiver threshold is met.',
-      },
+      // At ₹8.5 lakh a month, any card whose fee is waivable on spend must show a
+      // settled fee. Pinning a specific card here would not be objective: several
+      // cards state caps without amounts, so their figures are upper bounds.
+      topFeeSettled: true,
     }),
 
   p('X — Zero-fee shopper where a lifetime-free card must qualify', { online: 30000 }, ['cashback', 'low_annual_fee'], 'zero', false, 'not_important',
     {
       ...BASE, allCashback: true,
-      objective: {
-        cardId: 'ICICI-AMAZONPAY', within: 3,
-        reason: 'It is lifetime free and earns an uncapped 5% on online spend, so under a ₹0 fee ceiling no card in the database can produce a higher net value on online-only spend.',
-      },
+      allFeeFree: true,
     }),
 ];

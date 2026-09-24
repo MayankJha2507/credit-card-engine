@@ -18,6 +18,7 @@ interface ApiResult {
   considered: number;
   poolSize: number;
   databaseSize: number;
+  loungeFilterApplied: boolean;
 }
 
 const STEP_LABELS = ['Your spending', 'What matters', 'Your matches'];
@@ -115,6 +116,17 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
                   Based on your inputs and the {result.poolSize} verified cards we compared. Recommendations are based on
                   cards currently available in our database, not the whole Indian card market.
                 </p>
+                <ul className="mt-2 max-w-xl space-y-1 text-xs text-ink-muted">
+                  {result.loungeFilterApplied ? (
+                    <li>You said lounge access is important, so cards without it were left out.</li>
+                  ) : null}
+                  {result.matches.some((m) => m.valuation.isUpperBound) ? (
+                    <li>
+                      Figures marked &ldquo;up to&rdquo; come from cards that state a reward cap without an amount — those are
+                      upper bounds, not estimates. Open the calculation on a card to see what limits it.
+                    </li>
+                  ) : null}
+                </ul>
               </div>
 
               {result.matches.length > 1 ? (

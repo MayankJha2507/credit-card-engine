@@ -61,7 +61,11 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
       <dl className="mt-6 grid grid-cols-2 gap-4 rounded-xl bg-canvas p-4 sm:grid-cols-4">
         <div>
           <dt className="text-xs uppercase tracking-wide text-ink-muted">Est. annual rewards</dt>
-          <dd className="num mt-1 text-lg font-semibold">{valuation.hasUnmonetizableRewards && valuation.annualRewardValue === 0 ? 'Not valued' : formatINR(valuation.annualRewardValue)}</dd>
+          <dd className="num mt-1 text-lg font-semibold">
+            {valuation.hasUnmonetizableRewards && valuation.annualRewardValue === 0
+              ? 'Not valued'
+              : `${valuation.isUpperBound ? 'Up to ' : ''}${formatINR(valuation.annualRewardValue)}`}
+          </dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-ink-muted">Annual fee</dt>
@@ -73,7 +77,9 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-ink-muted">Est. net annual value</dt>
-          <dd className="num mt-1 text-lg font-semibold text-emerald-700">{formatINR(valuation.netAnnualValue)}</dd>
+          <dd className="num mt-1 text-lg font-semibold text-emerald-700">
+            {valuation.isUpperBound ? 'Up to ' : ''}{formatINR(valuation.netAnnualValue)}
+          </dd>
         </div>
       </dl>
 

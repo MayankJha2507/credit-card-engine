@@ -89,6 +89,12 @@ shown next to every derived figure in the UI.
   Reward Points on offline spends") are likewise left unresolved and reported by
   the import as a warning.
 * **Forex is a cost, never a reward.** International spend × markup is subtracted.
+* **Estimates versus upper bounds.** A card that states a cap without an amount
+  ("Monthly category cap applies") cannot have that cap applied, so its figure is
+  an upper bound. Those cards are marked, the UI writes "up to ₹X", and a firm
+  estimate outranks an upper bound of comparable value.
+* **Redemption ranges use the lowest stated rate.** "1 RP = ₹0.20 – ₹1.00" is
+  valued at ₹0.20 — a published number, kept conservative, and labelled as such.
 
 The full ranking methodology is in
 [`lib/recommendations/README.md`](lib/recommendations/README.md).
@@ -97,7 +103,15 @@ The full ranking methodology is in
 
 ## The workbook
 
-The supplied workbook is the source of truth. The import:
+The supplied workbook is the source of truth. When several workbooks are present,
+the import picks the one carrying the most fully-researched cards, prints which
+it chose and which it ignored, and `WORKBOOK_PATH` overrides the choice. Column
+names differ between editions ("Base Rate" vs "Base Reward Earn Rate Raw"), so
+`lib/data/columns.ts` maps whatever a sheet carries onto canonical names —
+adding a differently-labelled workbook is a one-line change there.
+
+If the workbook has a universe/coverage sheet, the import cross-checks its card
+IDs against the card master and reports either side's omissions. The import:
 
 1. locates it (`WORKBOOK_PATH`, else the first `.xlsx` in the repo root or `data/`),
 2. finds the header row of the `Card Master` sheet,

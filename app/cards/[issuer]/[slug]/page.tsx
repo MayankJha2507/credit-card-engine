@@ -142,6 +142,11 @@ export default async function CardDetailPage({ params }: { params: Promise<{ iss
                 <ul className="mt-2 space-y-1 text-sm text-ink-muted">{caps.map((r) => <li key={r.id}>· {r.raw}</li>)}</ul>
               </>
             ) : null}
+            {caps.some((r) => r.value === null) ? (
+              <p className="mt-2 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                This card states a cap without an amount we can apply, so any reward estimate for it is an upper bound.
+              </p>
+            ) : null}
             <h3 className="mt-5 text-sm font-semibold">Exclusions</h3>
             <p className="mt-1 text-sm text-ink-muted">{card.rewardExclusionsRaw ?? 'None recorded'}</p>
             <h3 className="mt-5 text-sm font-semibold">Redemption</h3>

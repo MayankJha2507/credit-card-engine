@@ -19,6 +19,9 @@ export interface BrowseRow {
   travel: boolean;
   /** Derived at request time from the raw base rule — never stored. */
   baseRate: number | null;
+  /** Free-text haystack for the search box. */
+  search: string;
+  scorable: boolean;
   lastVerifiedAt: string | null;
   dataConfidence: string | null;
 }
@@ -37,6 +40,9 @@ export function toBrowseRows(entries: CardWithRules[]): BrowseRow[] {
       rewards: e.rules.some((r) => r.unit === 'points' && r.value !== null),
       travel: /travel/i.test(`${e.card.cardType} ${e.card.travelBenefits ?? ''}`),
       baseRate: base ? effectiveRate(base, pointValue) : null,
+      search: [e.card.name, e.card.issuer, e.card.variant, e.card.cardType, e.card.network, e.card.baseRewardRateRaw, e.card.acceleratedRateRaw]
+        .filter(Boolean).join(' ').toLowerCase(),
+      scorable: Boolean(base),
       lastVerifiedAt: e.card.lastVerifiedAt, dataConfidence: e.card.dataConfidence,
     };
   });

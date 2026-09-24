@@ -32,6 +32,8 @@ export interface RecommendationResult {
   matches: ScoredCard[];
   considered: number;
   poolSize: number;
+  /** True when "lounge access is important" was applied as a requirement. */
+  loungeFilterApplied: boolean;
   excluded: Array<{ cardId: string; name: string; reason: string }>;
 }
 
@@ -116,11 +118,11 @@ function buildReasons(entry: CardWithRules, v: CardValuation, matches: Preferenc
 }
 
 function buildCautions(v: CardValuation): string[] {
-  const c = [...v.restrictions];
+  const c = [...v.dataCaveats, ...v.restrictions];
   if (v.hasUnmonetizableRewards) c.unshift(...v.unmonetizableReasons.map((r) => `${r} — it is not counted in the estimate above`));
   if (!v.feeWaived && v.annualFee > 0) c.push(`Annual fee of ${inr(v.annualFee)} applies: ${v.feeWaiverReason}`);
   if (v.joiningFee > 0) c.push(`One-time joining fee of ${inr(v.joiningFee)} in year one`);
-  return [...new Set(c)].slice(0, 6);
+  return [...new Set(c)].slice(0, 7);
 }
 
 export function recommend(pool: CardWithRules[], profile: UserProfile): RecommendationResult {
@@ -149,8 +151,26 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
     return false;
   });
 
-  // 3. Score.
-  const scored: ScoredCard[] = withinBudget.map((e) => {
+  // 3. Lounge access, when the user called it important, is a requirement rather
+  //    than a tie-break — "important" should mean it. If that leaves too few
+  //    cards to answer with, the filter is dropped and the result says so.
+  let pool2 = withinBudget;
+  let loungeFilterApplied = false;
+  if (profile.loungeImportance === 'important') {
+    const withLounge = withinBudget.filter((e) => loungeVisits(e).any);
+    if (withLounge.length >= RESULTS) {
+      for (const e of withinBudget) {
+        if (!loungeVisits(e).any) {
+          excluded.push({ cardId: e.card.id, name: e.card.name, reason: 'No complimentary lounge access recorded, and you said lounge access is important' });
+        }
+      }
+      pool2 = withLounge;
+      loungeFilterApplied = true;
+    }
+  }
+
+  // 4. Score.
+  const scored: ScoredCard[] = pool2.map((e) => {
     const valuation = valuations.get(e.card.id)!;
     const matches = preferenceMatches(e, profile);
     const totalWeight = matches.reduce((n, m) => n + m.weight, 0);
@@ -168,12 +188,12 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
     };
   });
 
-  // 4. Rank on estimated net annual value (ties broken by lower fee, then card ID
+  // 5. Rank on estimated net annual value (ties broken by lower fee, then card ID
   //    so the ordering is stable).
   scored.sort(byValue);
   scored.forEach((s, i) => { s.valueRank = i + 1; });
 
-  // 5. Within a documented window of the best value, prefer the better fit.
+  // 6. Within a documented window of the best value, prefer the better fit.
   const shortlist = scored.slice(0, SHORTLIST);
   const best = shortlist[0]?.valuation.netAnnualValue ?? 0;
   const window = Math.max(Math.abs(best) * VALUE_WINDOW_FRACTION, VALUE_WINDOW_FLOOR);
@@ -182,13 +202,18 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
   const inWindow = shortlist.filter((s) => s.inValueWindow).sort((a, b) => {
     const fit = b.preferenceScore - a.preferenceScore;
     if (Math.abs(fit) > 1e-9) return fit;
+    // Equally good fit and comparable value: prefer the card whose figure is
+    // derived from quantified terms over one that is only an upper bound.
+    const bound = Number(a.valuation.isUpperBound) - Number(b.valuation.isUpperBound);
+    if (bound !== 0) return bound;
     return byValue(a, b);
   });
   const outWindow = shortlist.filter((s) => !s.inValueWindow);
 
   return {
     matches: [...inWindow, ...outWindow].slice(0, RESULTS),
-    considered: withinBudget.length,
+    considered: pool2.length,
+    loungeFilterApplied,
     poolSize: eligible.length,
     excluded,
   };

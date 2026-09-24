@@ -229,6 +229,30 @@ export function valuateCard(entry: CardWithRules, spend: SpendProfile): CardValu
   const internationalAnnual = Math.max(0, spend.international ?? 0) * MONTHS;
   const forexCost = card.forexMarkup === null ? 0 : round(internationalAnnual * (card.forexMarkup / 100));
 
+  /* ---- data caveats ---- */
+  // Limits of the source data, stated plainly rather than absorbed into the numbers.
+  const dataCaveats: string[] = [];
+  const appliedRuleIds = new Set(categories.map((c) => c.ruleRaw).filter(Boolean));
+  const unresolvedCap = rules.some((r) => r.ruleType === 'reward_cap' && r.value === null);
+  const capStatedButUnquantified =
+    Boolean(card.rewardCapsRaw) &&
+    !/\bno\s+(?:upper\s+|overall\s+)?cap\b/i.test(card.rewardCapsRaw ?? '') &&
+    !rules.some((r) => r.cap !== null);
+  const isUpperBound = capStatedButUnquantified || unresolvedCap;
+  if (isUpperBound) {
+    dataCaveats.push(`This card states a reward cap ("${card.rewardCapsRaw}") without an amount we could apply, so the reward figure is an upper bound rather than an estimate`);
+  }
+  const redemptionRule = rules.find((r) => r.ruleType === 'redemption');
+  if (redemptionRule?.condition && /range|lowest stated|to ₹/i.test(redemptionRule.condition)) {
+    dataCaveats.push(`${redemptionRule.condition}, so the reward figure above is a floor rather than a midpoint`);
+  }
+  const unquantifiedAccel = rules.filter(
+    (r) => r.ruleType === 'accelerated_reward' && r.value === null && !/cap/i.test(r.notes ?? ''),
+  );
+  if (unquantifiedAccel.length > 0 && appliedRuleIds.size > 0) {
+    dataCaveats.push(`${unquantifiedAccel.length} accelerated reward${unquantifiedAccel.length > 1 ? 's' : ''} on this card could not be quantified from the source and ${unquantifiedAccel.length > 1 ? 'are' : 'is'} not counted: ${unquantifiedAccel.map((r) => `"${r.raw}"`).join(', ')}`);
+  }
+
   /* ---- restrictions ---- */
   const restrictions: string[] = [];
   if (card.forexMarkup !== null && card.forexMarkup > 0) restrictions.push(`${card.forexMarkup.toFixed(2)}% forex markup on international spends`);
@@ -257,6 +281,8 @@ export function valuateCard(entry: CardWithRules, spend: SpendProfile): CardValu
     forexMarkup: card.forexMarkup,
     netAnnualValue: round(annualRewardValue - annualFeeAfterWaiver - forexCost),
     restrictions,
+    dataCaveats,
+    isUpperBound,
     loungeSummary: {
       domestic: card.domesticLounge,
       international: card.internationalLounge,

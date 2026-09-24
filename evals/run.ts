@@ -48,6 +48,7 @@ function runCalculationEvals() {
     if (e.forexCost !== undefined) check(c.name, near(v.forexCost, e.forexCost), `forex ${v.forexCost} ≠ ${e.forexCost}`);
     if (e.netAnnualValue !== undefined) check(c.name, near(v.netAnnualValue, e.netAnnualValue), `net ${v.netAnnualValue} ≠ ${e.netAnnualValue}`);
     if (e.hasUnmonetizableRewards !== undefined) check(c.name, v.hasUnmonetizableRewards === e.hasUnmonetizableRewards, `hasUnmonetizableRewards ${v.hasUnmonetizableRewards}`);
+    if (e.isUpperBound !== undefined) check(c.name, v.isUpperBound === e.isUpperBound, `isUpperBound ${v.isUpperBound} ≠ ${e.isUpperBound}`);
 
     const ok = failures.length === before;
     console.log(`  ${ok ? C.green + '✓' : C.red + '✗'}${C.reset} ${c.name}`);
@@ -108,7 +109,21 @@ function runRecommendationEvals() {
 
     if (e.allHaveLounge) for (const m of r.matches) check(c.name, hasLounge(m), `${m.card.name} has no lounge access`);
     if (e.maxForexMarkup !== undefined) for (const m of r.matches) check(c.name, (m.card.forexMarkup ?? 99) <= e.maxForexMarkup, `${m.card.name} forex ${m.card.forexMarkup}%`);
-    if (e.allCashback) for (const m of r.matches) check(c.name, /cashback/i.test(`${m.card.cashbackRateRaw} ${m.card.baseRewardRateRaw}`), `${m.card.name} is not a cashback card`);
+    if (e.allCashback) {
+      for (const m of r.matches) {
+        const earnsCashback = entries.find((x) => x.card.id === m.card.id)!.rules
+          .some((rule) => rule.unit === 'cashback_percent' && rule.value !== null);
+        check(c.name, earnsCashback, `${m.card.name} has no cashback earn rule`);
+      }
+    }
+    // The documented rule is that a card over the ceiling qualifies only when the
+    // user's own spend settles its fee, so the property to assert is the fee they
+    // would actually pay, not the sticker fee.
+    if (e.allFeeFree) for (const m of r.matches) check(c.name, m.valuation.annualFeeAfterWaiver === 0, `${m.card.name} would still charge ${m.valuation.annualFeeAfterWaiver}`);
+    if (e.topFeeSettled) {
+      const top = r.matches[0];
+      if (top) check(c.name, top.valuation.annualFeeAfterWaiver === 0, `${top.card.name} still charges ${top.valuation.annualFeeAfterWaiver} at this spend level`);
+    }
     if (e.objective) check(c.name, ids.slice(0, e.objective.within).includes(e.objective.cardId),
       `expected ${e.objective.cardId} in the top ${e.objective.within} (${e.objective.reason}) — got ${ids.join(', ')}`);
 

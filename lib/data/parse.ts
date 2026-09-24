@@ -8,7 +8,7 @@
  */
 import type { CapBasis, CapPeriod, RuleCap, SpendCategory } from './types';
 
-const NA = /^(n\/?a|none|not available|needs verification|not available \/ needs verification|-|—)$/i;
+const NA = /^(n\/?a|none|nil|not available|not applicable|needs verification|not available \/ needs verification|not recorded|-|—)$/i;
 
 export function isBlank(v: unknown): boolean {
   if (v === null || v === undefined) return true;
@@ -26,7 +26,7 @@ export function parseMoney(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   const s = String(v);
-  const lakhCrore = s.match(/₹?\s*([\d.,]+)\s*(lakh|lac|crore|cr)\b/i);
+  const lakhCrore = s.match(/₹?\s*([\d.,]+)\s*(lakhs?|lacs?|crores?|cr)\b/i);
   if (lakhCrore) {
     const n = Number(lakhCrore[1].replace(/,/g, ''));
     if (!Number.isFinite(n)) return null;
@@ -38,11 +38,19 @@ export function parseMoney(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** "2.00%" -> 2 ; 0.035 -> 3.5 ; "0.00%" -> 0 */
+/**
+ * "2.00%" -> 2 ; 3.5 -> 3.5 ; "0.99" -> 0.99 ; "0.00%" -> 0
+ *
+ * Percent columns are read as percentages whether or not the cell carries a "%".
+ * A bare 0.99 means 0.99%, not 99% — rescaling small numbers would silently
+ * misread the several cards that charge sub-1% forex.
+ */
 export function parsePercent(v: unknown): number | null {
   if (v === null || v === undefined) return null;
-  if (typeof v === 'number') return v > 0 && v < 1 ? v * 100 : v;
-  const m = String(v).match(/(-?[\d.]+)\s*%/);
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const s = String(v).trim();
+  if (isBlank(s)) return null;
+  const m = s.match(/(-?[\d.]+)\s*%/) ?? s.match(/^(-?[\d.]+)$/);
   if (!m) return null;
   const n = Number(m[1]);
   return Number.isFinite(n) ? n : null;
@@ -71,23 +79,34 @@ export function parseDate(v: unknown): string | null {
 /**
  * Keyword -> canonical spend category. Used to map merchant and category names
  * written in the workbook onto the categories the questionnaire asks about.
- * Order matters: the first match on a longer keyword wins.
+ * These are SPECIFIC scopes only: a phrase like "all retail spends" is handled
+ * by `isGeneralScope` instead, because "applies to everything" and "applies to
+ * this category" mean very different things to the engine.
  */
 const CATEGORY_KEYWORDS: Array<[RegExp, SpendCategory]> = [
-  [/\binternational\b|\bforeign\b|\boverseas\b|\bcross[- ]border\b/i, 'international'],
-  [/\bflight|airline|air ticket|airfare|air mile/i, 'flights'],
-  [/\bhotel|stay|accommodation|marriott|oyo|makemytrip|mmt|cleartrip|goibibo|ixigo/i, 'hotels'],
-  [/\btravel\b|\btravel agenc|\bagencies\b/i, 'flights'],
-  [/\bdining\b|restaurant|food|swiggy|zomato|eazydiner|buffet/i, 'dining'],
-  [/\bgrocer|departmental|supermarket|bigbasket|blinkit|dmart|reliance fresh/i, 'groceries'],
-  [/\bfuel\b|petrol|diesel/i, 'fuel'],
-  [/\butilit|electricity|broadband|telecom|insurance premium/i, 'utilities'],
+  [/\binternational\b|\bintl\b|\bforeign\b|\boverseas\b|\bcross[- ]border\b/i, 'international'],
+  [/\bflight|airline|air ticket|airfare|air mile|indigo|vistara|akasa|spicejet|air india/i, 'flights'],
+  [/\bhotel|\bstay|accommodation|marriott|oyo|taj|itc|postcard|makemytrip|\bmmt\b|cleartrip|goibibo|ixigo|easemytrip|yatra/i, 'hotels'],
+  [/\btravel\b|travel agenc|\bagencies\b|\birctc\b|\brailway|\bbus booking/i, 'flights'],
+  [/\bdining\b|restaurant|\bfood\b|food delivery|swiggy|zomato|eazydiner|buffet|dineout|\bcafe\b/i, 'dining'],
+  [/\bgrocer|departmental|dept\b|supermarket|bigbasket|blinkit|zepto|instamart|dmart|reliance fresh|more retail|spencer's|natures basket/i, 'groceries'],
+  [/\bfuel\b|petrol|diesel|indianoil|indian oil|\bbpcl\b|\bhpcl\b|bharat petroleum|hindustan petroleum|\bshell\b/i, 'fuel'],
+  [/\butilit|electricity|broadband|telecom|mobile bill|airtel bill|\bjio\b|insurance premium|bill payment/i, 'utilities'],
   [
-    /\bonline\b|e-?commerce|smartbuy|amazon|flipkart|myntra|nykaa|tata cliq|ajio|marks & spencer|reliance digital|shopping|bookmyshow|sonyliv|cult\.?fit|uber|pvr|vouchers?/i,
+    /\bonline\b|e-?commerce|smartbuy|\bupi\b|amazon|flipkart|myntra|nykaa|ajio|tata cliq|tata neu|marks & spencer|reliance digital|croma|vijay sales|shopping|bookmyshow|sony ?liv|netflix|hotstar|cult\.?fit|\buber\b|\bola\b|\bpvr\b|inox|movie|gen-?z merchant/i,
     'online',
   ],
-  [/\bretail\b|\boffline\b|\ball spends?\b|\bother\b/i, 'other'],
+  // Offline retail that is not one of the buckets above falls into "Other",
+  // which is the catch-all the questionnaire offers.
+  [/apparel|jewel|shoppers stop|lifestyle|pantaloons|westside|trent|furnish|electronics store|departmental store/i, 'other'],
 ];
+
+/** Phrases that mean "this rate applies broadly", not to a named category. */
+const GENERAL_SCOPE = /\ball (?:other )?(?:retail )?spends?\b|\ball purchases\b|\bevery spend\b|\bretail shopping\b|\ball categories\b|\boffline\b|\bother spends?\b|\ball transactions\b/i;
+
+export function isGeneralScope(s: string | null): boolean {
+  return s !== null && GENERAL_SCOPE.test(s);
+}
 
 /**
  * Extract the canonical categories referenced by a free-text phrase.
@@ -122,9 +141,18 @@ export function parseExclusions(s: string | null): { categories: SpendCategory[]
 /* ------------------------------------------------------------------ */
 
 export type EarnRate =
-  | { kind: 'points'; points: number; perAmount: number }
+  | { kind: 'points'; points: number; perAmount: number; unitLabel: string }
+  /** A point count with no spend increment stated, e.g. "15 RPs on Air India Tickets". */
+  | { kind: 'points_unanchored'; points: number; unitLabel: string }
   | { kind: 'cashback'; percent: number }
   | { kind: 'multiplier'; multiplier: number };
+
+/**
+ * Words that mark a rewards currency. Issuers name theirs freely — RPs, EDGE
+ * Points, InterMiles, NeuCoins, My Cash, ixigo Money — so we read whatever label
+ * sits between the number and the spend increment and check it looks like one.
+ */
+const REWARD_UNIT = /point|rp\b|rps\b|mile|coin|cash|money|reward/i;
 
 /**
  * Parses a single earn expression:
@@ -135,11 +163,17 @@ export type EarnRate =
  */
 export function parseEarnRate(s: string | null): EarnRate | null {
   if (!s) return null;
-  const pts = s.match(/([\d.]+)\s*(?:reward\s+points?|rp|edge\s+miles?|travel\s+points?|points?|cashpoints?)\s*(?:per|\/)\s*₹?\s*([\d,]+)/i);
-  if (pts) {
+  // Not earn rates: fee concessions and point-transfer ratios.
+  if (/surcharge waiver|fee waiver|waiver of/i.test(s)) return null;
+  if (/transfer ratio|:\s*1\b|\b1\s*:\s*\d/i.test(s)) return null;
+  // "<n> <unit label> per|/ ₹<increment>" — the label is read, then sanity-checked.
+  const pts = s.match(/([\d.]+)\s+([A-Za-z][A-Za-z\s'.]{0,24}?)\s*(?:per|\/)\s*₹\s*([\d,]+)/);
+  if (pts && REWARD_UNIT.test(pts[2])) {
     const points = Number(pts[1]);
-    const per = Number(pts[2].replace(/,/g, ''));
-    if (Number.isFinite(points) && per > 0) return { kind: 'points', points, perAmount: per };
+    const per = Number(pts[3].replace(/,/g, ''));
+    if (Number.isFinite(points) && per > 0) {
+      return { kind: 'points', points, perAmount: per, unitLabel: pts[2].trim() };
+    }
   }
   const cb = s.match(/(?:up to\s*)?([\d.]+)\s*%\s*(?:unlimited\s*)?cashback/i);
   if (cb) {
@@ -152,11 +186,19 @@ export function parseEarnRate(s: string | null): EarnRate | null {
     if (Number.isFinite(m)) return { kind: 'multiplier', multiplier: m };
   }
   // Fallback for cashback clauses that omit the word "cashback",
-  // e.g. "2% on Amazon Pay partner merchants".
+  // e.g. "2% on Amazon Pay partner merchants" or "10% Valueback on IRCTC".
   const bare = s.match(/([\d.]+)\s*%/);
   if (bare) {
     const percent = Number(bare[1]);
     if (Number.isFinite(percent)) return { kind: 'cashback', percent };
+  }
+
+  // "<n> <unit label> on <something>" — a point count with no increment stated.
+  // The caller anchors it to the card's base increment, or leaves it unresolved.
+  const unanchored = s.match(/^\s*(?:up to\s+)?([\d.]+)\s+([A-Za-z][A-Za-z\s'.]{0,24}?)\s+(?:on|at|for)\b/i);
+  if (unanchored && REWARD_UNIT.test(unanchored[2])) {
+    const points = Number(unanchored[1]);
+    if (Number.isFinite(points)) return { kind: 'points_unanchored', points, unitLabel: unanchored[2].trim() };
   }
   return null;
 }
@@ -169,7 +211,9 @@ export function parseEarnRate(s: string | null): EarnRate | null {
 export function splitClauses(s: string | null): string[] {
   if (!s) return [];
   return s
-    .split(/;|(?<=\))\s+and\s+/i)
+    // ';' always separates clauses; a comma does too when the next fragment
+    // starts its own rate ("25% on Airtel Bills, 10% Swiggy/Zomato").
+    .split(/;|(?<=\))\s+and\s+|,\s*(?=\d+(?:\.\d+)?\s*(?:%|X\b|RPs?\b|Free\b))/i)
     .map((c) => c.trim())
     .filter(Boolean);
 }
@@ -204,7 +248,9 @@ export function parseCaps(s: string | null): RuleCap[] {
 
     const spend = clause.match(/₹?\s*([\d.,]+)\s*(lakh|lac|crore|cr)?\s*spend/i);
     const rupee = clause.match(/₹\s*([\d,]+(?:\.\d+)?)/);
-    const points = clause.match(/([\d,]+)\s*(?:accelerated\s+|bonus\s+|total\s+)*(?:rp|reward points?|points?|edge miles?|travel points?|tp)\b/i);
+    const points = clause.match(
+      /([\d,]+)\s*(?:accelerated\s+|bonus\s+|total\s+)*(?:[A-Za-z]+\s+)?(?:rps?|reward\s+points?|points?|miles?|coins?|cashpoints?|tps?)\b/i,
+    );
 
     if (spend) {
       basis = 'spend';
@@ -228,20 +274,45 @@ export function parseCaps(s: string | null): RuleCap[] {
 /* Redemption                                                          */
 /* ------------------------------------------------------------------ */
 
+export interface PointValue {
+  /** Rupees per point used by the engine. */
+  value: number;
+  /** Set when the source states a range or several rates. */
+  isRange: boolean;
+  low: number;
+  high: number;
+}
+
 /**
- * "1 RP = ₹1.00 (SmartBuy Flights/Hotels)" -> 1
- * "1 EDGE Mile = 2 Partner Miles"          -> null (not expressible in rupees)
+ * "1 RP = ₹1.00 (SmartBuy Flights/Hotels)"            -> 1.00, exact
+ * "1 RP = ₹0.20 - ₹1.00 depending on category"        -> 0.20, range 0.20–1.00
+ * "1 RP = ₹0.50 (Flights), 1 RP = ₹0.35 (Vouchers)"   -> 0.35, range 0.35–0.50
+ * "1 EDGE Mile = 2 Partner Miles"                     -> null
+ *
+ * Where the source gives a range or several rates, the engine uses the LOWEST
+ * stated value. That is a published number, not an estimate, and it keeps the
+ * reward figure conservative instead of flattering the card. The range is
+ * carried through so the UI can say which rate was used.
  *
  * A null result means the card's points cannot be monetised from verified data.
- * The engine reports points earned but excludes them from rupee totals rather
- * than inventing a conversion.
+ * The engine then reports the rewards as unvalued rather than inventing a rate.
  */
-export function parsePointValue(s: string | null): number | null {
+export function parsePointValue(s: string | null): PointValue | null {
   if (!s) return null;
-  const m = s.match(/1\s*(?:rp|reward point|edge mile|travel point|cashpoint|point)\s*=\s*₹\s*([\d.]+)/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) ? n : null;
+  const unit = /(?:rp|rps|reward points?|edge (?:mile|point)s?|travel points?|cashpoints?|neucoins?|points?|miles?)/i;
+  const re = new RegExp(`1\\s*${unit.source}\\s*=\\s*₹\\s*([\\d.]+)(?:\\s*(?:-|–|to)\\s*₹?\\s*([\\d.]+))?`, 'gi');
+  const found: number[] = [];
+  for (const m of s.matchAll(re)) {
+    for (const g of [m[1], m[2]]) {
+      if (g === undefined) continue;
+      const n = Number(g);
+      if (Number.isFinite(n) && n > 0) found.push(n);
+    }
+  }
+  if (found.length === 0) return null;
+  const low = Math.min(...found);
+  const high = Math.max(...found);
+  return { value: low, isRange: low !== high, low, high };
 }
 
 /* ------------------------------------------------------------------ */
@@ -273,6 +344,8 @@ export function slugify(s: string): string {
   return s
     .toLowerCase()
     .replace(/&/g, 'and')
+    // "Power+" and "Power" are different cards; keep the suffix in the URL.
+    .replace(/\+/g, ' plus ')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 }

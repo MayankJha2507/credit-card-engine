@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     matches: result.matches,
     considered: result.considered,
     poolSize: result.poolSize,
+    loungeFilterApplied: result.loungeFilterApplied,
     databaseSize: cards.length,
   });
 }
