@@ -120,6 +120,38 @@ Two contextual weights are added on top: lounge importance (×2 when "important"
 ×0.5 when "nice to have") and international travel (×1.5, met when forex markup
 ≤ 2.00%).
 
+## Step 4b — Covering the priorities that were actually selected
+
+Filling all three slots by value alone can return three cards that every one of
+them misses the thing the user asked for — someone who selects "low forex"
+should not be shown three cards charging 3.5%. So after the first slot, each
+remaining slot goes to the **highest-value shortlisted card that satisfies a
+selected priority no already-chosen card satisfies**. When no card adds new
+coverage, the slot goes by value as before.
+
+Each match records why it is there — `value`, `fit` (better fit at comparable
+value) or `coverage` — and which priorities it was the first to cover, so the UI
+can say "included because it is the highest-value card here that covers
+Cashback, which the card above does not".
+
+This never promotes a card that satisfies nothing, and it never reorders the
+first slot.
+
+## Step 4c — Cards that cannot be valued at all
+
+A card whose earn rate is published only as a multiplier with no absolute rate
+("5X RPs on base spend") produces a reward figure of ₹0. That is a gap in the
+source, not a fact about the card, so ranking it against cards with real numbers
+would be misleading in both directions. Those cards are held out of the ranking
+entirely and returned in `notableUnvalued` when they match a priority the user
+selected — shown under "Also worth knowing", with the reason they cannot be
+valued and the raw text quoted.
+
+They are ordered by how strongly they satisfy the priority that surfaced them
+(lowest forex markup when forex was asked for, most lounge visits when lounge
+was), then by fee. Ordering them by fee alone would rank a 0% forex card below a
+1.99% one, which is the opposite of what was asked.
+
 ## Step 5 — Explanation
 
 "Why it fits" is generated from the calculation output — the largest earning

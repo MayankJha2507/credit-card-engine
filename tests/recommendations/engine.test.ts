@@ -191,3 +191,53 @@ describe('annual fee handling', () => {
     expect(r.matches[0].cautions.join(' ')).toMatch(/joining fee/i);
   });
 });
+
+describe('priority coverage and unvaluable cards', () => {
+  const rich = cashbackCard('RICH', 10, 0);              // best value, no lounge
+  const lounge = cashbackCard('LOUNGE', 1, 0, { name: 'LOUNGE', domesticLounge: '8 visits/year', domesticLoungeVisits: 8 });
+  const plain = cashbackCard('PLAIN', 3, 0);
+  const plain2 = cashbackCard('PLAIN2', 2, 0);
+
+  it('gives a slot to a priority the top card does not satisfy', () => {
+    const r = recommend([rich, plain, plain2, lounge], { ...baseProfile, priorities: ['lounge_access'] });
+    expect(r.matches[0].card.id).toBe('RICH');
+    const loungePick = r.matches.find((m) => m.card.id === 'LOUNGE');
+    expect(loungePick).toBeDefined();
+    expect(loungePick!.selectionReason).toBe('coverage');
+    expect(loungePick!.coversPriorities).toContain('lounge_access');
+  });
+
+  it('does not displace value when the top card already covers the priority', () => {
+    const richWithLounge = cashbackCard('RICHL', 10, 0, { name: 'RICHL', domesticLounge: '8 visits/year', domesticLoungeVisits: 8 });
+    const r = recommend([richWithLounge, plain, plain2, lounge], { ...baseProfile, priorities: ['lounge_access'] });
+    expect(r.matches.map((m) => m.card.id)).toEqual(['RICHL', 'PLAIN', 'PLAIN2']);
+  });
+
+  it('keeps cards it cannot value out of the ranking, and surfaces them separately', () => {
+    // A multiplier base with no absolute rate: real cards in the database do this.
+    const unvaluable = makeEntry(
+      { id: 'NOVALUE', name: 'NOVALUE', annualFee: 0, forexMarkup: 0, baseRewardRateRaw: '5X RPs on base spend' },
+      [makeRule({ id: 'n-b', ruleType: 'base_reward', value: null, unit: null, raw: '5X RPs on base spend' })],
+    );
+    const r = recommend([unvaluable, plain, plain2, rich], { ...baseProfile, priorities: ['low_forex'] });
+
+    expect(r.matches.map((m) => m.card.id)).not.toContain('NOVALUE');
+    expect(r.notableUnvalued.map((m) => m.card.id)).toEqual(['NOVALUE']);
+    // It is there because it matches a priority, not because of a made-up value.
+    expect(r.notableUnvalued[0].valuation.annualRewardValue).toBe(0);
+    expect(r.notableUnvalued[0].preferenceMatches.some((p) => p.priority === 'low_forex' && p.matched)).toBe(true);
+  });
+
+  it('orders unvaluable cards by the priority that put them there, not by fee', () => {
+    const zeroForexPricey = makeEntry(
+      { id: 'ZERO', name: 'ZERO', annualFee: 10000, forexMarkup: 0, baseRewardRateRaw: '5X RPs on base spend' },
+      [makeRule({ id: 'z-b', ruleType: 'base_reward', value: null, unit: null, raw: '5X RPs on base spend' })],
+    );
+    const someForexFree = makeEntry(
+      { id: 'SOME', name: 'SOME', annualFee: 0, forexMarkup: 1.99, baseRewardRateRaw: '3X RPs on base spend' },
+      [makeRule({ id: 's-b', ruleType: 'base_reward', value: null, unit: null, raw: '3X RPs on base spend' })],
+    );
+    const r = recommend([someForexFree, zeroForexPricey, plain], { ...baseProfile, priorities: ['low_forex'] });
+    expect(r.notableUnvalued.map((m) => m.card.id)).toEqual(['ZERO', 'SOME']);
+  });
+});

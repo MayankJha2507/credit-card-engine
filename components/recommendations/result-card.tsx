@@ -12,7 +12,10 @@ import { OfficialLink } from './official-link';
 export function ResultCard({ match, rank }: { match: ScoredCard; rank: number }) {
   const { card, valuation } = match;
   const href = `/cards/${card.issuerSlug}/${card.slug}`;
-  const preferenceLed = valuation.netAnnualValue < 0 || match.valueRank > rank;
+  const preferenceLed = match.selectionReason === 'fit' || (match.valueRank > rank && match.selectionReason !== 'coverage');
+  const coverageLabels = match.preferenceMatches
+    .filter((p) => match.coversPriorities.includes(p.priority))
+    .map((p) => p.label);
 
   return (
     <article className="surface-card p-6 sm:p-7">
@@ -42,7 +45,13 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
         <OfficialLink url={match.officialUrl} issuer={card.issuer} cardName={card.name} variant="inline" label={`${card.issuer} official page`} />
       </p>
 
-      {preferenceLed ? (
+      {match.selectionReason === 'coverage' && coverageLabels.length > 0 ? (
+        <p className="mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
+          Included because it is the highest-value card here that covers{' '}
+          <strong className="font-semibold">{coverageLabels.join(' and ')}</strong> — a priority you selected that the
+          card above does not. It ranks #{match.valueRank} on estimated value.
+        </p>
+      ) : preferenceLed ? (
         <p className="mt-4 rounded-lg bg-brand-50 p-3 text-sm text-brand-800">
           Ranked here because it matches the priorities you selected, not because it returns the most money.
           It ranks #{match.valueRank} on estimated value among the cards we compared.

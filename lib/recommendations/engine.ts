@@ -5,7 +5,7 @@
 import { inr, valuateCard } from '@/lib/calculations/engine';
 import type { CardValuation, UserProfile } from '@/lib/calculations/types';
 import { FEE_BAND_MAX, PRIORITY_LABELS } from '@/lib/calculations/types';
-import { hasLoungeAccess, isRecommendable, type CardWithRules } from '@/lib/data/types';
+import { hasLoungeAccess, isRecommendable, UNLIMITED_LOUNGE, type CardWithRules } from '@/lib/data/types';
 
 export interface PreferenceMatch {
   priority: string;
@@ -14,6 +14,9 @@ export interface PreferenceMatch {
   weight: number;
   evidence: string;
 }
+
+/** Why a card occupies the slot it does. */
+export type SelectionReason = 'value' | 'fit' | 'coverage';
 
 export interface ScoredCard {
   card: CardWithRules['card'];
@@ -26,10 +29,21 @@ export interface ScoredCard {
   inValueWindow: boolean;    // close enough to the best value to be re-ordered on fit
   reasons: string[];         // "why it fits", generated from the calculations
   cautions: string[];
+  /** Why this card was returned: top value, better fit at similar value, or the
+   *  only shortlisted card covering a priority the user selected. */
+  selectionReason: SelectionReason;
+  /** Selected priorities this card is the first returned one to satisfy. */
+  coversPriorities: string[];
 }
 
 export interface RecommendationResult {
   matches: ScoredCard[];
+  /**
+   * Cards that match a priority the user selected but whose rewards cannot be
+   * valued from the source data, so they cannot be ranked against the others.
+   * Surfaced separately rather than ranked on a fabricated number.
+   */
+  notableUnvalued: ScoredCard[];
   considered: number;
   poolSize: number;
   /** True when "lounge access is important" was applied as a requirement. */
@@ -188,16 +202,25 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
       inValueWindow: false,
       reasons: buildReasons(e, valuation, matches),
       cautions: buildCautions(valuation),
+      selectionReason: 'value' as SelectionReason,
+      coversPriorities: [],
     };
   });
 
+  // Cards with no monetizable earn rule cannot be ranked on value at all: their
+  // reward figure would be ₹0, which is a gap in the data rather than a fact
+  // about the card. They are set aside and surfaced separately below.
+  const valuable = scored.filter((s) => !(s.valuation.hasUnmonetizableRewards && s.valuation.annualRewardValue === 0));
+  const unvalued = scored.filter((s) => s.valuation.hasUnmonetizableRewards && s.valuation.annualRewardValue === 0);
+  const rankable = valuable.length > 0 ? valuable : scored;
+
   // 5. Rank on estimated net annual value (ties broken by lower fee, then card ID
   //    so the ordering is stable).
-  scored.sort(byValue);
-  scored.forEach((s, i) => { s.valueRank = i + 1; });
+  rankable.sort(byValue);
+  rankable.forEach((s, i) => { s.valueRank = i + 1; });
 
   // 6. Within a documented window of the best value, prefer the better fit.
-  const shortlist = scored.slice(0, SHORTLIST);
+  const shortlist = rankable.slice(0, SHORTLIST);
   const best = shortlist[0]?.valuation.netAnnualValue ?? 0;
   const window = Math.max(Math.abs(best) * VALUE_WINDOW_FRACTION, VALUE_WINDOW_FLOOR);
   for (const s of shortlist) s.inValueWindow = s.valuation.netAnnualValue >= best - window;
@@ -211,15 +234,89 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
     if (bound !== 0) return bound;
     return byValue(a, b);
   });
-  const outWindow = shortlist.filter((s) => !s.inValueWindow);
+  const ordered = [...inWindow, ...shortlist.filter((s) => !s.inValueWindow)];
+
+  // 7. Fill the remaining slots so the selected priorities are actually
+  //    represented. Filling purely by value can return three cards that all
+  //    miss the one thing the user asked for — someone who asks for low forex
+  //    should not be shown three cards charging 3.5%. Each later slot goes to
+  //    the highest-value shortlisted card that satisfies a selected priority no
+  //    already-picked card satisfies; when none does, it goes by value.
+  const matches: ScoredCard[] = [];
+  const covered = new Set<string>();
+  const remaining = [...ordered];
+
+  while (matches.length < RESULTS && remaining.length > 0) {
+    let pick = remaining[0];
+    let reason: SelectionReason = matches.length === 0
+      ? (pick.inValueWindow && pick.valueRank > 1 ? 'fit' : 'value')
+      : 'value';
+    let newlyCovered: string[] = [];
+
+    if (matches.length > 0) {
+      // `remaining` is already in value order, so the first card that adds
+      // coverage is the most valuable one that does.
+      for (const candidate of remaining) {
+        const adds = candidate.preferenceMatches
+          .filter((m) => m.matched && !covered.has(m.priority))
+          .map((m) => m.priority);
+        if (adds.length > 0) {
+          pick = candidate;
+          reason = 'coverage';
+          newlyCovered = adds;
+          break;
+        }
+      }
+    } else {
+      newlyCovered = pick.preferenceMatches.filter((m) => m.matched).map((m) => m.priority);
+    }
+
+    pick.selectionReason = reason;
+    pick.coversPriorities = newlyCovered;
+    for (const p of pick.preferenceMatches) if (p.matched) covered.add(p.priority);
+    matches.push(pick);
+    remaining.splice(remaining.indexOf(pick), 1);
+  }
+
+  // 8. Cards that match something the user asked for but cannot be valued.
+  const notableUnvalued = unvalued
+    .filter((s) => s.preferenceMatches.some((m) => m.matched))
+    .sort((a, b) => b.preferenceScore - a.preferenceScore || byPriorityStrength(a, b, profile))
+    .slice(0, RESULTS);
 
   return {
-    matches: [...inWindow, ...outWindow].slice(0, RESULTS),
+    matches,
+    notableUnvalued,
     considered: pool2.length,
     loungeFilterApplied,
     poolSize: eligible.length,
     excluded,
   };
+}
+
+/**
+ * Orders cards that cannot be valued. Preference fit alone ties them, so we fall
+ * back to how strongly each satisfies the priority that put it here — the lowest
+ * forex markup when forex is what was asked for, the most lounge visits when
+ * lounge was — then the lower fee. Without this, a 0% forex card loses to a
+ * 1.99% one purely on fee, which is the opposite of what was asked.
+ */
+function byPriorityStrength(a: ScoredCard, b: ScoredCard, profile: UserProfile): number {
+  const wantsForex = profile.priorities.includes('low_forex') || profile.internationalTravel;
+  if (wantsForex) {
+    const d = (a.card.forexMarkup ?? 99) - (b.card.forexMarkup ?? 99);
+    if (Math.abs(d) > 1e-9) return d;
+  }
+  if (profile.priorities.includes('lounge_access') || profile.loungeImportance !== 'not_important') {
+    const visits = (c: ScoredCard) => {
+      const d = c.card.domesticLoungeVisits ?? 0;
+      const i = c.card.internationalLoungeVisits ?? 0;
+      return (d === UNLIMITED_LOUNGE ? 1000 : d) + (i === UNLIMITED_LOUNGE ? 1000 : i);
+    };
+    const d = visits(b) - visits(a);
+    if (d !== 0) return d;
+  }
+  return (a.card.annualFee ?? 0) - (b.card.annualFee ?? 0) || a.card.id.localeCompare(b.card.id);
 }
 
 function byValue(a: ScoredCard, b: ScoredCard): number {

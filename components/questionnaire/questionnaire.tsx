@@ -8,6 +8,7 @@ import type { SpendCategory } from '@/lib/data/types';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import { ComparisonTable } from '@/components/recommendations/comparison-table';
+import { UnvaluedMatches } from '@/components/recommendations/unvalued-matches';
 import { AnswerSummary } from './answer-summary';
 import { PreferencesStep } from './preferences-step';
 import { SpendStep } from './spend-step';
@@ -16,6 +17,7 @@ type Step = 0 | 1 | 2;
 
 interface ApiResult {
   matches: ScoredCard[];
+  notableUnvalued: ScoredCard[];
   considered: number;
   poolSize: number;
   databaseSize: number;
@@ -216,6 +218,8 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
                 {result.matches.map((m, i) => <ResultCard key={m.card.id} match={m} rank={i + 1} />)}
               </div>
             )}
+
+            {view === 'cards' ? <UnvaluedMatches cards={result.notableUnvalued ?? []} /> : null}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Button variant="secondary" onClick={() => setStep(0)}>Edit my spending</Button>

@@ -89,6 +89,15 @@ refinement on the results instead, the fee is shown on every card, and year-one
 value carries the joining fee. "Low annual fee" stays available as a priority,
 where it breaks ties rather than removing cards.
 
+### Cards that cannot be valued
+
+Ten of the 103 cards publish their earn rate only as a multiplier with no
+absolute rate ("3X RPs offline"), so no rupee value can be derived. Rather than
+rank them at ₹0 — which would bury a card like IDFC FIRST Mayura, a 0% forex
+premium card — they are held out of the ranking and surfaced separately under
+"Also worth knowing" whenever they match a priority the user selected, with the
+reason stated and the raw text quoted.
+
 ### What the engine refuses to invent
 
 * **Lounge access, milestones, insurance, concierge** have no rupee value

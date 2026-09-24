@@ -22,6 +22,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     matches: result.matches,
+    notableUnvalued: result.notableUnvalued,
     considered: result.considered,
     poolSize: result.poolSize,
     loungeFilterApplied: result.loungeFilterApplied,
