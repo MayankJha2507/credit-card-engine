@@ -139,8 +139,20 @@ first slot.
 
 ## Step 4c — Cards that cannot be valued at all
 
-A card whose earn rate is published only as a multiplier with no absolute rate
-("5X RPs on base spend") produces a reward figure of ₹0. That is a gap in the
+A multiplier is **not** missing data. "5X RP on base spend" is resolved against
+what the card says 1X earns, taken in order from:
+
+1. an explicit unit-rate column in the workbook (`Base Unit Rate`, `1X Rate`,
+   `Unit Reward Rate`), if it has one;
+2. any clause stating a multiplier alongside an absolute rate — "Up to 10X
+   Rewards on SmartBuy (50 RPs / ₹150)" fixes 1X at 5 RP per ₹150;
+3. an absolute base rate, which is 1X by definition — this is how an
+   accelerated "5X on Dining" has always been resolved against a "3 RP / ₹150"
+   base.
+
+A card is only incomplete when **none** of these exist: the base rate is itself
+written as a multiplier and nothing on the card says what 1X earns, so there is
+nothing to multiply. Such a card produces a reward figure of ₹0. That is a gap in the
 source, not a fact about the card, so ranking it against cards with real numbers
 would be misleading in both directions. Those cards are held out of the ranking
 entirely and returned in `notableUnvalued` when they match a priority the user

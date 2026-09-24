@@ -20,7 +20,9 @@ import {
   slugify,
   splitClauses,
   text,
+  unitRateFromClause,
 } from './parse';
+import { canonicalizeRow } from './columns';
 import { UNLIMITED_LOUNGE } from './types';
 import type { Card, CardRule, CardSource, CardWithRules, RuleCap, SpendCategory } from './types';
 
@@ -77,7 +79,10 @@ export interface TransformResult {
 /** Phrases that mean "this base rate only applies to a limited set of categories". */
 const BASE_QUALIFIER = /\bon\b(?!\s*all\b)|special categories|select categories/i;
 
-export function transformRow(row: WorkbookRow): TransformResult {
+export function transformRow(rawRow: WorkbookRow): TransformResult {
+  // Idempotent: rows arriving from the import are already canonical, and this
+  // keeps any other caller from having to know the alias table.
+  const row = canonicalizeRow(rawRow);
   const warnings: TransformWarning[] = [];
   const id = String(row['Card ID']).trim();
   const issuer = String(row['Issuer']).trim();
@@ -178,8 +183,33 @@ export function transformRow(row: WorkbookRow): TransformResult {
     }
   }
 
-  /* ---------------- base earn ---------------- */
+  /* ---------------- what "1X" means on this card ---------------- */
+  /**
+   * A multiplier is only missing data when there is nothing on the card for it
+   * to multiply. The unit ("1X") rate is taken, in order, from:
+   *   1. an explicit unit-rate column, if the workbook provides one;
+   *   2. any clause that states a multiplier alongside an absolute rate, e.g.
+   *      "Up to 10X Rewards on SmartBuy (50 RPs / ₹150)" fixes 1X at 5 RP/₹150;
+   *   3. an absolute base rate, which is 1X by definition.
+   * Only when none of these exist is a multiplier-only card incomplete.
+   */
   const baseRaw = card.baseRewardRateRaw;
+  const explicitUnit = parseEarnRate(text(row['Base Unit Rate']));
+  let unitRate: { points: number; perAmount: number } | null =
+    explicitUnit?.kind === 'points' ? { points: explicitUnit.points, perAmount: explicitUnit.perAmount } : null;
+  let unitSource = unitRate ? 'the unit rate stated for this card' : '';
+
+  if (!unitRate) {
+    for (const clause of [baseRaw, ...splitClauses(card.acceleratedRateRaw)]) {
+      const derived = unitRateFromClause(clause);
+      if (derived) {
+        unitRate = derived;
+        unitSource = `"${clause}"`;
+        break;
+      }
+    }
+  }
+
   const base = parseEarnRate(baseRaw);
   const baseQualified = !!baseRaw && BASE_QUALIFIER.test(baseRaw) && !/all\s+(other\s+)?(retail|spends)/i.test(baseRaw);
   let baseRule: CardRule | null = null;
@@ -216,8 +246,28 @@ export function transformRow(row: WorkbookRow): TransformResult {
       sourceId: srcId,
       raw: baseRaw!,
     };
+  } else if (base?.kind === 'multiplier' && unitRate) {
+    // "5X RPs on base spend" with a known 1X: resolve it rather than calling it missing.
+    baseRule = {
+      id: ruleId('base'),
+      cardId: id,
+      ruleType: 'base_reward',
+      categories: baseQualified ? categoriesFromText(baseRaw).filter((c) => c !== 'other') : [],
+      value: round2(base.multiplier * unitRate.points),
+      unit: 'points',
+      perAmount: unitRate.perAmount,
+      condition: `${base.multiplier}X resolved against ${unitSource} (1X = ${unitRate.points} per ₹${unitRate.perAmount})`,
+      cap: null,
+      notes: null,
+      sourceId: srcId,
+      raw: baseRaw!,
+    };
   } else if (baseRaw) {
-    // e.g. "3X Reward Points on offline spends" — no absolute anchor in the workbook.
+    // The base rate itself is a multiplier and the card never says what 1X is,
+    // so there is nothing for it to multiply.
+    const why = base?.kind === 'multiplier'
+      ? 'The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply'
+      : 'No earning rate could be read from this text';
     baseRule = {
       id: ruleId('base'),
       cardId: id,
@@ -228,13 +278,20 @@ export function transformRow(row: WorkbookRow): TransformResult {
       perAmount: null,
       condition: null,
       cap: null,
-      notes: 'Rate expressed as a multiplier with no absolute base stated; not machine-resolvable',
+      notes: why,
       sourceId: srcId,
       raw: baseRaw,
     };
-    warn('Base Reward Earn Rate Raw', `Unresolvable base earn rate: "${baseRaw}"`);
+    warn('Base Reward Earn Rate Raw', `${why}: "${baseRaw}"`);
   }
   if (baseRule) rules.push(baseRule);
+
+  if (baseRule && base?.kind === 'points' && unitRate && explicitUnit === null) {
+    const impliedBase = unitRate.points * (unitRate.perAmount === base.perAmount ? 1 : base.perAmount / unitRate.perAmount);
+    if (unitRate.perAmount === base.perAmount && Math.abs(impliedBase - base.points) > 0.01) {
+      warn('Base Reward Earn Rate Raw', `Stated base rate (${base.points} per ₹${base.perAmount}) disagrees with the 1X rate implied by ${unitSource} (${unitRate.points} per ₹${unitRate.perAmount}); the stated base rate is used`);
+    }
+  }
 
   /* ---------------- accelerated earn ---------------- */
   const caps = parseCaps(card.rewardCapsRaw);
@@ -288,8 +345,15 @@ export function transformRow(row: WorkbookRow): TransformResult {
           continue;
         }
         if (baseQualified) {
-          rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'Multiplier cannot be anchored: the base rate itself is category-restricted'));
-          warn('Accelerated Earn Rate Raw', `Multiplier not anchorable: "${clause}"`);
+          if (unitRate) {
+            rules.push(mk(
+              ruleId('accel'), id, 'accelerated_reward', cats, round2(rate.multiplier * unitRate.points), 'points',
+              unitRate.perAmount, `${rate.multiplier}X resolved against ${unitSource}`, cap, srcId, clause,
+            ));
+          } else {
+            rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'Multiplier cannot be anchored: the base rate itself is category-restricted and the card never states what 1X earns'));
+            warn('Accelerated Earn Rate Raw', `Multiplier not anchorable: "${clause}"`);
+          }
           continue;
         }
         rules.push(
@@ -297,8 +361,13 @@ export function transformRow(row: WorkbookRow): TransformResult {
         );
       } else if (baseRule && baseRule.unit === 'cashback_percent' && baseRule.value !== null) {
         rules.push(mk(ruleId('accel'), id, 'accelerated_reward', cats, round2(baseRule.value * rate.multiplier), 'cashback_percent', null, condition, cap, srcId, clause));
+      } else if (unitRate) {
+        rules.push(mk(
+          ruleId('accel'), id, 'accelerated_reward', cats, round2(rate.multiplier * unitRate.points), 'points',
+          unitRate.perAmount, `${rate.multiplier}X resolved against ${unitSource}`, cap, srcId, clause,
+        ));
       } else {
-        rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'Multiplier with no absolute base rate to anchor against'));
+        rules.push(unresolved(ruleId('accel'), id, clause, srcId, 'Multiplier with no absolute base rate and no stated 1X rate to anchor against'));
         warn('Accelerated Earn Rate Raw', `Multiplier not anchorable: "${clause}"`);
       }
     }

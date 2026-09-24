@@ -204,6 +204,22 @@ export function parseEarnRate(s: string | null): EarnRate | null {
 }
 
 /**
+ * A clause that states a multiplier AND an absolute rate pins down what "1X"
+ * means for the card: "Up to 10X Rewards on SmartBuy (50 RPs / ₹150)" fixes
+ * 1X at 5 RP per ₹150. Returns null when the clause does not do both.
+ */
+export function unitRateFromClause(clause: string | null): { points: number; perAmount: number } | null {
+  if (!clause) return null;
+  const mult = clause.match(/\b([\d.]+)\s*X\b/i);
+  if (!mult) return null;
+  const multiplier = Number(mult[1]);
+  if (!Number.isFinite(multiplier) || multiplier <= 0) return null;
+  const rate = parseEarnRate(clause);
+  if (rate?.kind !== 'points') return null;
+  return { points: rate.points / multiplier, perAmount: rate.perAmount };
+}
+
+/**
  * Accelerated cells often pack several clauses:
  *   "5% Cashback on Flipkart; 4% Cashback on preferred partners (Swiggy, Uber, PVR, Cleartrip)"
  * Split on ';' so each clause becomes its own rule with its own categories.

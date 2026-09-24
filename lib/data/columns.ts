@@ -31,6 +31,9 @@ export const COLUMN_ALIASES: Record<string, string[]> = {
   'Lounge Program': ['Lounge Program', 'Lounge Programme'],
   'Lounge Spend Requirement': ['Lounge Spend Requirement', 'Lounge Spend Req'],
   'Base Reward Earn Rate Raw': ['Base Reward Earn Rate Raw', 'Base Rate', 'Base Earn Rate'],
+  // Optional. Lets a workbook state what "1X" means for a card whose rates are
+  // all written as multipliers, e.g. "1 RP / ₹150".
+  'Base Unit Rate': ['Base Unit Rate', 'Unit Reward Rate', 'Unit Rate', '1X Rate', 'Base Multiplier Unit'],
   'Accelerated Earn Rate Raw': ['Accelerated Earn Rate Raw', 'Accel Rate', 'Accelerated Rate'],
   'Accelerated Categories': ['Accelerated Categories', 'Accel Cats'],
   'Reward Caps': ['Reward Caps', 'Caps'],

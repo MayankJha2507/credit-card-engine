@@ -91,8 +91,12 @@ where it breaks ties rather than removing cards.
 
 ### Cards that cannot be valued
 
-Ten of the 103 cards publish their earn rate only as a multiplier with no
-absolute rate ("3X RPs offline"), so no rupee value can be derived. Rather than
+A multiplier is resolved against whatever the card says 1X earns — an explicit
+unit-rate column, a clause that states a multiplier and an absolute rate
+together, or an absolute base rate. Twelve of the 103 cards give none of these:
+their *base* rate is itself a multiplier ("3X RPs offline") with no 1X anywhere
+on the row, so there is nothing to multiply. Adding a `Base Unit Rate` column to
+the workbook (e.g. `1 RP / ₹150`) resolves them with no code change. Rather than
 rank them at ₹0 — which would bury a card like IDFC FIRST Mayura, a 0% forex
 premium card — they are held out of the ranking and surfaced separately under
 "Also worth knowing" whenever they match a priority the user selected, with the

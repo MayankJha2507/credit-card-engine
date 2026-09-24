@@ -1,5 +1,5 @@
 {
-  "importedAt": "2026-09-24T13:39:12.726Z",
+  "importedAt": "2026-09-24T18:13:16.350Z",
   "workbook": "India_Credit_Cards_103_Fully_Researched_Master.xlsx",
   "entries": [
     {
@@ -12330,7 +12330,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-MAYURA--src-1",
           "raw": "5X RPs on base spend"
         },
@@ -12542,7 +12542,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-ASHVA--src-1",
           "raw": "3X RPs on base spend"
         },
@@ -12754,7 +12754,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-SELECT--src-1",
           "raw": "3X RPs on offline"
         },
@@ -12768,7 +12768,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Multiplier with no absolute base rate to anchor against",
+          "notes": "Multiplier with no absolute base rate and no stated 1X rate to anchor against",
           "sourceId": "IDFC-FIRST-SELECT--src-1",
           "raw": "6X RPs online / 10X > ₹20k"
         },
@@ -12966,7 +12966,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-WEALTH--src-1",
           "raw": "3X RPs offline"
         },
@@ -12980,7 +12980,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Multiplier with no absolute base rate to anchor against",
+          "notes": "Multiplier with no absolute base rate and no stated 1X rate to anchor against",
           "sourceId": "IDFC-FIRST-WEALTH--src-1",
           "raw": "6X RPs online / 10X > ₹30k"
         },
@@ -13178,7 +13178,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-CLASSIC--src-1",
           "raw": "3X RPs offline"
         },
@@ -13192,7 +13192,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Multiplier with no absolute base rate to anchor against",
+          "notes": "Multiplier with no absolute base rate and no stated 1X rate to anchor against",
           "sourceId": "IDFC-FIRST-CLASSIC--src-1",
           "raw": "6X RPs online / 10X > ₹20k"
         },
@@ -13376,7 +13376,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-MILLENNIA--src-1",
           "raw": "3X RPs offline"
         },
@@ -13390,7 +13390,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Multiplier with no absolute base rate to anchor against",
+          "notes": "Multiplier with no absolute base rate and no stated 1X rate to anchor against",
           "sourceId": "IDFC-FIRST-MILLENNIA--src-1",
           "raw": "6X RPs online / 10X > ₹20k"
         },
@@ -13574,7 +13574,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-POWER--src-1",
           "raw": "2X RPs on general"
         },
@@ -13760,7 +13760,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-POWER-PLUS--src-1",
           "raw": "3X RPs on general"
         },
@@ -14146,7 +14146,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "The base earning rate is itself stated as a multiplier and the card never states what 1X earns, so there is nothing to multiply",
           "sourceId": "IDFC-FIRST-CLUB-BRIGHT--src-1",
           "raw": "2X RPs"
         },
@@ -14160,7 +14160,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Multiplier with no absolute base rate to anchor against",
+          "notes": "Multiplier with no absolute base rate and no stated 1X rate to anchor against",
           "sourceId": "IDFC-FIRST-CLUB-BRIGHT--src-1",
           "raw": "5X RPs on E-commerce"
         },
@@ -14330,7 +14330,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "No earning rate could be read from this text",
           "sourceId": "KOTAK-WHITE-RESERVE--src-1",
           "raw": "White Pass Value"
         },
@@ -14542,7 +14542,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "No earning rate could be read from this text",
           "sourceId": "KOTAK-WHITE--src-1",
           "raw": "White Pass Value"
         },
@@ -15552,7 +15552,7 @@
           "perAmount": null,
           "condition": null,
           "cap": null,
-          "notes": "Rate expressed as a multiplier with no absolute base stated; not machine-resolvable",
+          "notes": "No earning rate could be read from this text",
           "sourceId": "KOTAK-PVR-INNOVATE--src-1",
           "raw": "1 PVR Shield Point"
         },

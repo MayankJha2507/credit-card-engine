@@ -104,3 +104,69 @@ describe('validateEntries', () => {
     expect(errorsFor({ ...e, card: { ...e.card, activeStatus: false } })).toMatch(/Inactive card marked as available|open for applications/);
   });
 });
+
+describe('multipliers are resolved, not treated as missing data', () => {
+  const multiplierRow = {
+    ...row,
+    'Card ID': 'MULT-TEST',
+    'Base Reward Earn Rate Raw': '5X RPs on base spend',
+    'Accelerated Earn Rate Raw': '10X RPs on Dining',
+    'Redemption Ratio Raw': '1 RP = ₹1.00',
+    'Reward Caps': 'No cap',
+  };
+  const baseOf = (r: Record<string, unknown>) =>
+    transformRow(r).entry.rules.find((x) => x.ruleType === 'base_reward')!;
+  const accelOf = (r: Record<string, unknown>) =>
+    transformRow(r).entry.rules.find((x) => x.ruleType === 'accelerated_reward')!;
+
+  it('resolves a multiplier base against a unit rate stated in its own column', () => {
+    const base = baseOf({ ...multiplierRow, 'Base Unit Rate': '1 RP / ₹150' });
+    expect(base.value).toBe(5);          // 5X of 1 RP
+    expect(base.perAmount).toBe(150);
+    expect(base.raw).toBe('5X RPs on base spend');   // the raw fact is still the raw fact
+    expect(base.condition).toMatch(/1X = 1 per ₹150/);
+  });
+
+  it('accepts the alternative column spellings a workbook might use', () => {
+    expect(baseOf({ ...multiplierRow, '1X Rate': '2 RPs / ₹100' }).value).toBe(10);
+    expect(baseOf({ ...multiplierRow, 'Unit Reward Rate': '2 RPs / ₹100' }).value).toBe(10);
+  });
+
+  it('derives the unit rate from a clause that states a multiplier and an absolute rate', () => {
+    // "10X ... (50 RPs / ₹150)" fixes 1X at 5 RP per ₹150, so a 5X base is 25.
+    const r = { ...multiplierRow, 'Accelerated Earn Rate Raw': 'Up to 10X Rewards on SmartBuy (50 RPs / ₹150)' };
+    expect(baseOf(r)).toMatchObject({ value: 25, perAmount: 150, unit: 'points' });
+  });
+
+  it('resolves accelerated multipliers against the card base rate', () => {
+    const accel = accelOf({ ...multiplierRow, 'Base Unit Rate': '1 RP / ₹150' });
+    expect(accel.value).toBe(10);        // 10X of 1 RP, not 10X of the 5X base
+    expect(accel.perAmount).toBe(150);
+    expect(accel.categories).toContain('dining');
+  });
+
+  it('still resolves an accelerated multiplier against an absolute base rate', () => {
+    const accel = accelOf({
+      ...row, 'Base Reward Earn Rate Raw': '3 RP / ₹150', 'Accelerated Earn Rate Raw': '5X RP on Dining',
+    });
+    expect(accel.value).toBe(15);        // 5 × 3 RP per ₹150
+    expect(accel.perAmount).toBe(150);
+  });
+
+  it('only reports incomplete when nothing on the card says what 1X earns', () => {
+    const { entry, warnings } = transformRow(multiplierRow);
+    const base = entry.rules.find((x) => x.ruleType === 'base_reward')!;
+    expect(base.value).toBeNull();
+    expect(base.notes).toMatch(/never states what 1X earns/);
+    expect(warnings.some((w) => /never states what 1X earns/.test(w.message))).toBe(true);
+  });
+
+  it('flags a derived unit rate that contradicts a stated absolute base rate', () => {
+    const { warnings } = transformRow({
+      ...row,
+      'Base Reward Earn Rate Raw': '9 RPs / ₹150',
+      'Accelerated Earn Rate Raw': 'Up to 10X Rewards on SmartBuy (50 RPs / ₹150)',
+    });
+    expect(warnings.some((w) => /disagrees with the 1X rate/.test(w.message))).toBe(true);
+  });
+});
