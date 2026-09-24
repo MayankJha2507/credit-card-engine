@@ -36,7 +36,7 @@ const SIZES = {
 } as const;
 
 export function CardVisual({
-  issuer, issuerSlug, name, network, variant, cardType, size = 'md', className,
+  issuer, issuerSlug, name, network, variant, cardType, size = 'md', className, showName = true,
 }: {
   issuer: string;
   issuerSlug: string;
@@ -46,6 +46,8 @@ export function CardVisual({
   cardType: string | null;
   size?: keyof typeof SIZES;
   className?: string;
+  /** Off where the card's name is already displayed beside the visual. */
+  showName?: boolean;
 }) {
   const hue = hueFor(issuerSlug);
   const tier = tierOf(variant, cardType);
@@ -78,8 +80,8 @@ export function CardVisual({
         <div className="h-4 w-6 rounded-[3px] bg-gradient-to-br from-amber-100/90 to-amber-300/70 sm:h-5 sm:w-7" />
 
         <div>
-          <p className={cn('line-clamp-2 font-semibold leading-tight', s.name)}>{name}</p>
-          {variant ? <p className={cn('mt-0.5 text-white/65', s.foot)}>{variant}</p> : null}
+          {showName ? <p className={cn('line-clamp-2 font-semibold leading-tight', s.name)}>{name}</p> : null}
+          {variant ? <p className={cn('text-white/65', s.foot, showName && 'mt-0.5')}>{variant}</p> : null}
         </div>
       </div>
     </div>

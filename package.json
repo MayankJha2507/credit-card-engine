@@ -11,7 +11,9 @@
     "import-data": "tsx scripts/import-workbook.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "eval": "tsx evals/run.ts"
+    "eval": "tsx evals/run.ts",
+    "eval:verbose": "tsx evals/run.ts --verbose",
+    "eval:json": "tsx evals/run.ts --json"
   },
   "dependencies": {
     "clsx": "^2.1.1",

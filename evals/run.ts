@@ -15,6 +15,15 @@ import { entry, loadEntries } from './loader';
 
 const C = { red: '\x1b[31m', green: '\x1b[32m', dim: '\x1b[2m', yellow: '\x1b[33m', reset: '\x1b[0m' };
 
+/**
+ * `npm run eval -- --verbose` prints the hand-derived arithmetic for every case,
+ * not just failing ones, so the numbers can be checked by reading.
+ * `npm run eval -- --json` emits a machine-readable report.
+ */
+const VERBOSE = process.argv.includes('--verbose');
+const JSON_OUT = process.argv.includes('--json');
+const report: Array<{ suite: string; name: string; passed: boolean; detail: string[]; result?: string[] }> = [];
+
 let passed = 0;
 const failures: string[] = [];
 
@@ -28,7 +37,7 @@ function near(a: number, b: number, tol = 1) {
 }
 
 function runCalculationEvals() {
-  console.log('\n─── Calculation evals ───────────────────────────────────────');
+  if (!JSON_OUT) console.log('\n─── Calculation evals ───────────────────────────────────────');
   const entries = loadEntries();
   for (const c of calculationCases) {
     const before = failures.length;
@@ -51,8 +60,10 @@ function runCalculationEvals() {
     if (e.isUpperBound !== undefined) check(c.name, v.isUpperBound === e.isUpperBound, `isUpperBound ${v.isUpperBound} ≠ ${e.isUpperBound}`);
 
     const ok = failures.length === before;
+    report.push({ suite: 'calculation', name: c.name, passed: ok, detail: c.workings.split('\n') });
+    if (JSON_OUT) continue;
     console.log(`  ${ok ? C.green + '✓' : C.red + '✗'}${C.reset} ${c.name}`);
-    if (!ok) console.log(`${C.dim}${c.workings.split('\n').map((l) => `      ${l}`).join('\n')}${C.reset}`);
+    if (!ok || VERBOSE) console.log(`${C.dim}${c.workings.split('\n').map((l) => `      ${l}`).join('\n')}${C.reset}`);
   }
 }
 
@@ -61,7 +72,7 @@ function hasLounge(m: ScoredCard) {
 }
 
 function runRecommendationEvals() {
-  console.log('\n─── Recommendation evals ────────────────────────────────────');
+  if (!JSON_OUT) console.log('\n─── Recommendation evals ────────────────────────────────────');
   const entries = loadEntries();
   const FEE_MAX: Record<string, number> = { zero: 0, under_1k: 999, '1k_5k': 5000, '5k_10k': 10000, '10k_plus': Infinity };
 
@@ -128,16 +139,40 @@ function runRecommendationEvals() {
       `expected ${e.objective.cardId} in the top ${e.objective.within} (${e.objective.reason}) — got ${ids.join(', ')}`);
 
     const ok = failures.length === before;
+    const matchLines = r.matches.map((m) =>
+      `${m.card.name} — net ₹${Math.round(m.valuation.netAnnualValue).toLocaleString('en-IN')}${m.valuation.isUpperBound ? ' (upper bound)' : ''}, fee ₹${m.valuation.annualFeeAfterWaiver}, fit ${(m.preferenceScore * 100).toFixed(0)}%, value rank #${m.valueRank}`);
+    report.push({
+      suite: 'recommendation', name: c.name, passed: ok,
+      detail: [`profile: ${JSON.stringify(c.profile.spend)} · fee band ${c.profile.feeBand} · lounge ${c.profile.loungeImportance} · priorities [${c.profile.priorities.join(', ')}]`],
+      result: matchLines,
+    });
+    if (JSON_OUT) continue;
     console.log(`  ${ok ? C.green + '✓' : C.red + '✗'}${C.reset} ${c.name}`);
-    console.log(`${C.dim}      ${r.matches.map((m) => `${m.card.name} (net ₹${Math.round(m.valuation.netAnnualValue).toLocaleString('en-IN')}, fit ${(m.preferenceScore * 100).toFixed(0)}%)`).join(' · ') || 'no matches'}${C.reset}`);
+    if (VERBOSE) console.log(`${C.dim}      profile: ${JSON.stringify(c.profile.spend)} · ${c.profile.feeBand} · lounge ${c.profile.loungeImportance}${C.reset}`);
+    console.log(`${C.dim}${matchLines.map((l) => `      ${l}`).join('\n') || '      no matches'}${C.reset}`);
   }
 }
 
 function main() {
   const snapshot = loadEntries();
-  console.log(`${C.dim}Evaluating against ${snapshot.length} cards in the database.${C.reset}`);
+  if (!JSON_OUT) {
+    console.log(`${C.dim}Evaluating against ${snapshot.length} cards in the database.${C.reset}`);
+    console.log(`${C.dim}Cases: evals/calculation-cases.ts and evals/recommendation-cases.ts · methodology: lib/recommendations/README.md${C.reset}`);
+    console.log(`${C.dim}Add --verbose to print the arithmetic behind every case, or --json for a machine-readable report.${C.reset}`);
+  }
   runCalculationEvals();
   runRecommendationEvals();
+
+  if (JSON_OUT) {
+    console.log(JSON.stringify({
+      cards: snapshot.length,
+      assertions: passed + failures.length,
+      failed: failures,
+      cases: report,
+    }, null, 2));
+    if (failures.length > 0) process.exit(1);
+    return;
+  }
 
   console.log('\n─────────────────────────────────────────────────────────────');
   if (failures.length === 0) {

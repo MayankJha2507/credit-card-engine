@@ -103,6 +103,8 @@ export interface CardValuation {
    * silently absorbed into the numbers.
    */
   dataCaveats: string[];
+  /** The same caveats as short labels, for dense layouts like the comparison table. */
+  dataCaveatTags: string[];
   /**
    * True when the card states a cap it does not quantify, so the reward figure
    * is an upper bound rather than an estimate. The UI says "up to" instead of

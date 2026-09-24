@@ -43,6 +43,8 @@ npm run import-data     # writes PostgreSQL and the snapshot
 | `npm run import-data -- --dry-run` | Validate the workbook without writing anything |
 | `npm test` | Unit tests (parsers, calculation engine, recommendation engine, SQL path) |
 | `npm run eval` | Calculation and recommendation eval suites |
+| `npm run eval:verbose` | The same, printing the hand-derived arithmetic behind every case |
+| `npm run eval:json` | The same as a machine-readable report |
 | `npm run typecheck` | `tsc --noEmit` |
 
 Run `npm test` **and** `npm run eval` after any change to the calculation or
@@ -181,6 +183,23 @@ application links, and they open in a new tab.
   value equals rewards − fee − forex, results reproducible) rather than pinning
   "card X must win". Two cases do name a card, and each states the calculation
   rule that makes that outcome objective.
+
+### Checking accuracy yourself
+
+```bash
+npm run eval:verbose
+```
+
+prints, for every calculation case, the arithmetic the expectation was derived
+from — annual spend, the rate applied, the cap, the fee and the waiver — next to
+a pass or fail. For every profile it prints the cards returned with their net
+value, the fee after waiver, the preference fit and the value rank, so a ranking
+can be checked against the methodology by reading. `npm run eval:json` emits the
+same as JSON for diffing between runs.
+
+The cases themselves are plain TypeScript and meant to be read and edited:
+`evals/calculation-cases.ts` carries a `workings` string per case spelling out
+the derivation, and `evals/recommendation-cases.ts` holds the profiles.
 
 If card data changes and an eval fails, re-derive the expectation from the new
 raw facts — do not relax the check to match the engine.
