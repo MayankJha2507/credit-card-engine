@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    @apply bg-canvas text-ink;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'tnum';
+  }
+  ::selection { @apply bg-brand-100; }
+}
+
+@layer components {
+  .container-page { @apply mx-auto w-full max-w-6xl px-5 sm:px-8; }
+  .surface-card { @apply rounded-2xl border border-line bg-surface shadow-card; }
+  .num { font-variant-numeric: tabular-nums; }
+}
