@@ -8,6 +8,7 @@ import type { SpendCategory } from '@/lib/data/types';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import { ComparisonTable } from '@/components/recommendations/comparison-table';
+import { AnswerSummary } from './answer-summary';
 import { PreferencesStep } from './preferences-step';
 import { SpendStep } from './spend-step';
 
@@ -35,6 +36,19 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'cards' | 'compare'>('cards');
   const [error, setError] = useState<string | null>(null);
+
+  /** Clears every answer and the results, back to an empty first step. */
+  function reset() {
+    setSpend({});
+    setPriorities([]);
+    setFeeBand('1k_5k');
+    setInternationalTravel(false);
+    setLoungeImportance('nice_to_have');
+    setResult(null);
+    setError(null);
+    setView('cards');
+    setStep(0);
+  }
 
   const markStarted = () => {
     if (!started) { setStarted(true); track('questionnaire_started'); }
@@ -66,24 +80,47 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
 
   return (
     <div className="container-page py-12">
-      <ol className="flex items-center gap-2 text-sm">
-        {STEP_LABELS.map((label, i) => (
-          <li key={label} className="flex items-center gap-2">
-            <span className={cn('num grid h-6 w-6 place-items-center rounded-full text-xs font-semibold',
-              i <= step ? 'bg-ink text-white' : 'bg-line text-ink-muted')}>{i + 1}</span>
-            <span className={cn(i === step ? 'font-medium text-ink' : 'text-ink-muted')}>{label}</span>
-            {i < STEP_LABELS.length - 1 ? <span aria-hidden className="mx-2 h-px w-6 bg-line sm:w-10" /> : null}
-          </li>
-        ))}
+      <ol className="flex flex-wrap items-center gap-2 text-sm">
+        {STEP_LABELS.map((label, i) => {
+          // A step is reachable once it has been reached; the results step stays
+          // reachable after a calculation, so editing an answer never loses them.
+          const reachable = i < step || (i === 2 && result !== null) || i === step;
+          return (
+            <li key={label} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => reachable && setStep(i as Step)}
+                disabled={!reachable}
+                aria-current={i === step ? 'step' : undefined}
+                className={cn('flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors',
+                  reachable && i !== step && 'hover:bg-canvas', !reachable && 'cursor-default')}
+              >
+                <span className={cn('num grid h-6 w-6 place-items-center rounded-full text-xs font-semibold',
+                  i <= step || (i === 2 && result) ? 'bg-ink text-white' : 'bg-line text-ink-muted')}>{i + 1}</span>
+                <span className={cn(i === step ? 'font-medium text-ink' : 'text-ink-muted')}>{label}</span>
+              </button>
+              {i < STEP_LABELS.length - 1 ? <span aria-hidden className="mx-1 h-px w-6 bg-line sm:w-10" /> : null}
+            </li>
+          );
+        })}
       </ol>
 
       <div className="mt-10">
         {step === 0 ? (
           <div onFocusCapture={markStarted} onPointerDown={markStarted}>
             <SpendStep spend={spend} onChange={setSpend} />
-            <div className="mt-10 flex items-center gap-3">
+            <div className="mt-10 flex flex-wrap items-center gap-3">
               <Button size="lg" onClick={() => setStep(1)}>Continue</Button>
-              <ButtonLink href="/cards" variant="ghost" size="lg">Browse all cards instead</ButtonLink>
+              {result ? (
+                <>
+                  <Button size="lg" variant="secondary" onClick={calculate} disabled={loading}>
+                    {loading ? 'Recalculating…' : 'Recalculate now'}
+                  </Button>
+                  <Button size="lg" variant="ghost" onClick={() => setStep(2)}>Back to my matches</Button>
+                </>
+              ) : (
+                <ButtonLink href="/cards" variant="ghost" size="lg">Browse all cards instead</ButtonLink>
+              )}
             </div>
           </div>
         ) : null}
@@ -100,9 +137,12 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
               }}
             />
             {error ? <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-            <div className="mt-10 flex items-center gap-3">
-              <Button size="lg" onClick={calculate} disabled={loading}>{loading ? 'Calculating…' : 'Calculate'}</Button>
-              <Button size="lg" variant="secondary" onClick={() => setStep(0)}>Back</Button>
+            <div className="mt-10 flex flex-wrap items-center gap-3">
+              <Button size="lg" onClick={calculate} disabled={loading}>
+                {loading ? 'Calculating…' : result ? 'Recalculate' : 'Calculate'}
+              </Button>
+              <Button size="lg" variant="secondary" onClick={() => setStep(0)}>Back to spending</Button>
+              {result ? <Button size="lg" variant="ghost" onClick={() => setStep(2)}>Back to my matches</Button> : null}
             </div>
           </div>
         ) : null}
@@ -156,6 +196,13 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
               ) : null}
             </div>
 
+            <AnswerSummary
+              spend={spend} priorities={priorities} feeBand={feeBand}
+              internationalTravel={internationalTravel} loungeImportance={loungeImportance}
+              onEditSpending={() => setStep(0)} onEditPreferences={() => setStep(1)}
+              onReset={reset}
+            />
+
             {result.matches.length === 0 ? (
               <p className="mt-8 surface-card p-6 text-sm text-ink-muted">
                 No card in our database fits those constraints. Try widening the annual fee preference.
@@ -169,7 +216,8 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
             )}
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button variant="secondary" onClick={() => setStep(0)}>Change my answers</Button>
+              <Button variant="secondary" onClick={() => setStep(0)}>Edit my spending</Button>
+              <Button variant="secondary" onClick={() => setStep(1)}>Edit my preferences</Button>
               <ButtonLink href="/cards" variant="ghost">Browse all {researchedCount} cards</ButtonLink>
             </div>
           </div>
