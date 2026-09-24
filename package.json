@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "eval": "tsx evals/run.ts",
     "eval:verbose": "tsx evals/run.ts --verbose",
-    "eval:json": "tsx evals/run.ts --json"
+    "eval:json": "tsx evals/run.ts --json",
+    "data-gaps": "tsx scripts/data-gaps.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",

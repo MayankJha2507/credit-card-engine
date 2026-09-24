@@ -45,6 +45,7 @@ npm run import-data     # writes PostgreSQL and the snapshot
 | `npm run eval` | Calculation and recommendation eval suites |
 | `npm run eval:verbose` | The same, printing the hand-derived arithmetic behind every case |
 | `npm run eval:json` | The same as a machine-readable report |
+| `npm run data-gaps` | Every field the engine could not resolve, as `data-gaps.xlsx` |
 | `npm run typecheck` | `tsc --noEmit` |
 
 Run `npm test` **and** `npm run eval` after any change to the calculation or
@@ -148,6 +149,16 @@ IDs against the card master and reports either side's omissions. The import:
 Errors abort the import before anything is written. Warnings (text that could not
 be machine-resolved) are printed and the card is still stored — with the
 unresolved rule kept verbatim so nothing is silently lost.
+
+### Finding what the workbook is missing
+
+```bash
+npm run data-gaps
+```
+
+writes `data-gaps.xlsx` — one row per unresolved field, with what the workbook
+currently holds, what is needed and what the gap costs, ranked by severity.
+Fix the workbook, re-run `npm run import-data`, and re-run it to confirm.
 
 **Adding a card is a data change, not a code change**: add the row, re-run
 `npm run import-data`, and it appears in the app.
