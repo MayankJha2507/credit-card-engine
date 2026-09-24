@@ -10,7 +10,7 @@ facts in the database plus the steps below.
 * **Spend profile** — approximate monthly rupee spend in nine categories
   (online, dining, flights, hotels, groceries, fuel, utilities, international, other).
 * **Priorities** — a multi-select of what the user cares about.
-* **Annual fee preference** — a ceiling band.
+* **Annual fee ceiling** — optional, and **not asked up front**. See Step 2.
 * **International travel** — yes / no.
 * **Lounge importance** — not important / nice to have / important.
 
@@ -47,12 +47,12 @@ Then:
 
 * **Annual fee** — the stated fee. The waiver is *evaluated*, never stored:
   `feeWaived = estimatedAnnualSpend >= waiverThreshold`.
+* **Joining fee** — reported separately as `firstYearValue`
+  (`netAnnualValue − joiningFee`) rather than folded into the annual figure, so
+  a large one-time cost is visible instead of being averaged away.
 * **Forex** — international spend × markup. This is a **cost**, subtracted; it is
   never treated as a reward.
 * **Net annual value** = `rewards − annual fee after waiver − forex cost`.
-
-The joining fee is reported separately as a year-one cost rather than folded into
-the annual figure.
 
 ### What the engine deliberately does not do
 

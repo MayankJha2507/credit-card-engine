@@ -155,3 +155,39 @@ describe('lounge access when the user says it is important', () => {
     expect(r.matches[0].card.id).toBe('RICH');
   });
 });
+
+describe('annual fee handling', () => {
+  // A card worth more after paying its fee than a free card is worth in total.
+  const pricey = makeEntry(
+    { id: 'PRICEY', name: 'PRICEY', annualFee: 12500, annualFeeWaiverThreshold: null, annualFeeWaiverCondition: null },
+    [{ ...redemption, cardId: 'PRICEY' }, makeRule({ id: 'p-b', ruleType: 'base_reward', value: 8, unit: 'cashback_percent' })],
+  );
+  const free = cashbackCard('FREE', 2, 0);
+
+  it('does not filter on fee by default, because the fee is already subtracted', () => {
+    const r = recommend([pricey, free], { ...baseProfile, feeBand: 'any' });
+    expect(r.matches[0].card.id).toBe('PRICEY');
+    expect(r.matches[0].valuation.annualFeeAfterWaiver).toBe(12500);
+    // It wins on what is left after the fee, not despite it.
+    expect(r.matches[0].valuation.netAnnualValue).toBeGreaterThan(r.matches[1].valuation.netAnnualValue);
+    expect(r.excluded).toHaveLength(0);
+  });
+
+  it('still honours a ceiling when one is asked for', () => {
+    const r = recommend([pricey, free], { ...baseProfile, feeBand: 'zero' });
+    expect(r.matches.map((m) => m.card.id)).toEqual(['FREE']);
+    expect(r.excluded.some((e) => e.cardId === 'PRICEY')).toBe(true);
+  });
+
+  it('reports year one separately so a joining fee is visible, not averaged away', () => {
+    const joining = makeEntry(
+      { id: 'JOIN', name: 'JOIN', annualFee: 0, joiningFee: 15000, annualFeeWaiverThreshold: null },
+      [{ ...redemption, cardId: 'JOIN' }, makeRule({ id: 'j-b', ruleType: 'base_reward', value: 2, unit: 'cashback_percent' })],
+    );
+    const r = recommend([joining], baseProfile);
+    const v = r.matches[0].valuation;
+    expect(v.netAnnualValue).toBe(7200);              // 360000 × 2%
+    expect(v.firstYearValue).toBe(7200 - 15000);      // year one carries the joining fee
+    expect(r.matches[0].cautions.join(' ')).toMatch(/joining fee/i);
+  });
+});

@@ -284,6 +284,7 @@ export function valuateCard(entry: CardWithRules, spend: SpendProfile): CardValu
     forexCost,
     forexMarkup: card.forexMarkup,
     netAnnualValue: round(annualRewardValue - annualFeeAfterWaiver - forexCost),
+    firstYearValue: round(annualRewardValue - annualFeeAfterWaiver - forexCost - joiningFee),
     restrictions,
     dataCaveats,
     dataCaveatTags,

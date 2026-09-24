@@ -1,5 +1,5 @@
 'use client';
-import { FEE_BAND_LABELS, PRIORITY_LABELS, type FeeBand, type LoungeImportance, type Priority } from '@/lib/calculations/types';
+import { FEE_BANDS, FEE_BAND_LABELS, PRIORITY_LABELS, type FeeBand, type LoungeImportance, type Priority } from '@/lib/calculations/types';
 import { CATEGORY_LABELS, SPEND_CATEGORIES, type SpendCategory } from '@/lib/data/types';
 import { formatINR } from '@/lib/utils';
 
@@ -15,6 +15,7 @@ const LOUNGE_LABELS: Record<LoungeImportance, string> = {
  */
 export function AnswerSummary({
   spend, priorities, feeBand, internationalTravel, loungeImportance, onEditSpending, onEditPreferences, onReset,
+  onFeeBandChange, refining,
 }: {
   spend: Partial<Record<SpendCategory, number>>;
   priorities: Priority[];
@@ -25,6 +26,8 @@ export function AnswerSummary({
   onEditPreferences: () => void;
   /** Clears every answer, not just navigation. */
   onReset: () => void;
+  onFeeBandChange: (band: FeeBand) => void;
+  refining: boolean;
 }) {
   const monthly = SPEND_CATEGORIES.reduce((n, c) => n + (spend[c] ?? 0), 0);
   const top = SPEND_CATEGORIES
@@ -57,7 +60,6 @@ export function AnswerSummary({
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">What matters to you</p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <span className="rounded-full border border-line bg-canvas px-2.5 py-0.5 text-xs">Fee {FEE_BAND_LABELS[feeBand]}</span>
             <span className="rounded-full border border-line bg-canvas px-2.5 py-0.5 text-xs">{LOUNGE_LABELS[loungeImportance]}</span>
             {internationalTravel ? <span className="rounded-full border border-line bg-canvas px-2.5 py-0.5 text-xs">Spends internationally</span> : null}
             {priorities.map((p) => (
@@ -71,6 +73,22 @@ export function AnswerSummary({
         </div>
       </div>
 
+      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+        <label className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+          Annual fee ceiling
+          <select
+            value={feeBand}
+            disabled={refining}
+            onChange={(e) => onFeeBandChange(e.target.value as FeeBand)}
+            className="mt-1 block h-9 w-full rounded-lg border border-line bg-surface px-2 text-sm font-normal normal-case tracking-normal text-ink focus:border-ink focus:outline-none disabled:opacity-60 sm:w-48"
+          >
+            {FEE_BANDS.map((b) => <option key={b} value={b}>{FEE_BAND_LABELS[b]}</option>)}
+          </select>
+        </label>
+        <p className="max-w-[12rem] text-[11px] leading-snug text-ink-muted sm:text-right">
+          Fees are already subtracted from each card&apos;s value, so this is optional.
+        </p>
+
       <button
         type="button"
         onClick={onReset}
@@ -78,6 +96,7 @@ export function AnswerSummary({
       >
         Start over
       </button>
+      </div>
     </div>
   );
 }

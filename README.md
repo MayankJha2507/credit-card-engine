@@ -80,6 +80,15 @@ A conclusion is never written back into a card rule. Re-running the calculation
 with different inputs always re-derives from the raw text, and the raw text is
 shown next to every derived figure in the UI.
 
+### Why there is no annual-fee question
+
+The fee is already subtracted from every card's value, so filtering on the
+sticker fee before showing anything hides cards that are worth more after paying
+it — and nearly everyone would answer "₹0". A fee ceiling is offered as a
+refinement on the results instead, the fee is shown on every card, and year-one
+value carries the joining fee. "Low annual fee" stays available as a priority,
+where it breaks ties rather than removing cards.
+
 ### What the engine refuses to invent
 
 * **Lounge access, milestones, insurance, concierge** have no rupee value

@@ -28,10 +28,17 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   premium_benefits: 'Premium benefits',
 };
 
-export const FEE_BANDS = ['zero', 'under_1k', '1k_5k', '5k_10k', '10k_plus'] as const;
+/**
+ * Fee ceilings. 'any' is the default: the engine already subtracts the fee from
+ * a card's value, so filtering on the sticker fee up front hides cards that are
+ * worth more after paying it. A ceiling is offered as a refinement on the
+ * results instead, for people who genuinely have one.
+ */
+export const FEE_BANDS = ['any', 'zero', 'under_1k', '1k_5k', '5k_10k', '10k_plus'] as const;
 export type FeeBand = (typeof FEE_BANDS)[number];
 
 export const FEE_BAND_LABELS: Record<FeeBand, string> = {
+  any: 'Any annual fee',
   zero: '₹0',
   under_1k: 'Under ₹1,000',
   '1k_5k': '₹1,000–₹5,000',
@@ -41,6 +48,7 @@ export const FEE_BAND_LABELS: Record<FeeBand, string> = {
 
 /** Inclusive upper bound of each band, in rupees. */
 export const FEE_BAND_MAX: Record<FeeBand, number> = {
+  any: Number.POSITIVE_INFINITY,
   zero: 0,
   under_1k: 999,
   '1k_5k': 5000,
@@ -96,6 +104,8 @@ export interface CardValuation {
   forexMarkup: number | null;
   /** annualRewardValue − annualFeeAfterWaiver − forexCost */
   netAnnualValue: number;
+  /** Year one, which also carries the one-time joining fee. */
+  firstYearValue: number;
   restrictions: string[];
   /**
    * Limits of the source data that affect how much this estimate can be trusted,

@@ -29,7 +29,7 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
   const [started, setStarted] = useState(false);
   const [spend, setSpend] = useState<Partial<Record<SpendCategory, number>>>({});
   const [priorities, setPriorities] = useState<Priority[]>([]);
-  const [feeBand, setFeeBand] = useState<FeeBand>('1k_5k');
+  const [feeBand, setFeeBand] = useState<FeeBand>('any');
   const [internationalTravel, setInternationalTravel] = useState(false);
   const [loungeImportance, setLoungeImportance] = useState<LoungeImportance>('nice_to_have');
   const [result, setResult] = useState<ApiResult | null>(null);
@@ -41,7 +41,7 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
   function reset() {
     setSpend({});
     setPriorities([]);
-    setFeeBand('1k_5k');
+    setFeeBand('any');
     setInternationalTravel(false);
     setLoungeImportance('nice_to_have');
     setResult(null);
@@ -54,10 +54,10 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
     if (!started) { setStarted(true); track('questionnaire_started'); }
   };
 
-  async function calculate() {
+  async function calculate(overrides: Partial<UserProfile> = {}) {
     setLoading(true);
     setError(null);
-    const profile: UserProfile = { spend, priorities, feeBand, internationalTravel, loungeImportance };
+    const profile: UserProfile = { spend, priorities, feeBand, internationalTravel, loungeImportance, ...overrides };
     try {
       const res = await fetch('/api/recommend', {
         method: 'POST',
@@ -113,7 +113,7 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
               <Button size="lg" onClick={() => setStep(1)}>Continue</Button>
               {result ? (
                 <>
-                  <Button size="lg" variant="secondary" onClick={calculate} disabled={loading}>
+                  <Button size="lg" variant="secondary" onClick={() => calculate()} disabled={loading}>
                     {loading ? 'Recalculating…' : 'Recalculate now'}
                   </Button>
                   <Button size="lg" variant="ghost" onClick={() => setStep(2)}>Back to my matches</Button>
@@ -128,17 +128,16 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
         {step === 1 ? (
           <div>
             <PreferencesStep
-              priorities={priorities} feeBand={feeBand} internationalTravel={internationalTravel} loungeImportance={loungeImportance}
+              priorities={priorities} internationalTravel={internationalTravel} loungeImportance={loungeImportance}
               onChange={(patch) => {
                 if (patch.priorities) setPriorities(patch.priorities);
-                if (patch.feeBand) setFeeBand(patch.feeBand);
                 if (patch.internationalTravel !== undefined) setInternationalTravel(patch.internationalTravel);
                 if (patch.loungeImportance) setLoungeImportance(patch.loungeImportance);
               }}
             />
             {error ? <p className="mt-6 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Button size="lg" onClick={calculate} disabled={loading}>
+              <Button size="lg" onClick={() => calculate()} disabled={loading}>
                 {loading ? 'Calculating…' : result ? 'Recalculate' : 'Calculate'}
               </Button>
               <Button size="lg" variant="secondary" onClick={() => setStep(0)}>Back to spending</Button>
@@ -201,11 +200,14 @@ export function Questionnaire({ researchedCount }: { researchedCount: number }) 
               internationalTravel={internationalTravel} loungeImportance={loungeImportance}
               onEditSpending={() => setStep(0)} onEditPreferences={() => setStep(1)}
               onReset={reset}
+              onFeeBandChange={(b) => { setFeeBand(b); void calculate({ feeBand: b }); }}
+              refining={loading}
             />
 
             {result.matches.length === 0 ? (
               <p className="mt-8 surface-card p-6 text-sm text-ink-muted">
-                No card in our database fits those constraints. Try widening the annual fee preference.
+                No card in our database fits those constraints. Try raising the annual fee ceiling, or
+                relaxing how important lounge access is.
               </p>
             ) : view === 'compare' ? (
               <ComparisonTable matches={result.matches} />

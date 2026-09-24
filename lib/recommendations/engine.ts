@@ -137,10 +137,13 @@ export function recommend(pool: CardWithRules[], profile: UserProfile): Recommen
     return true;
   });
 
-  // 2. Hard filter: the user's stated annual fee ceiling.
+  // 2. Optional fee ceiling. The default is 'any': a card's fee is already
+  //    subtracted from its value, so filtering on the sticker fee would hide
+  //    cards that are worth more after paying it. A ceiling only applies when
+  //    the user asks for one on the results.
   //    A card above the ceiling still qualifies if the fee is waived at the
   //    user's estimated spend, because the fee they would actually pay is ₹0.
-  const ceiling = FEE_BAND_MAX[profile.feeBand];
+  const ceiling = FEE_BAND_MAX[profile.feeBand ?? 'any'];
   const valuations = new Map<string, CardValuation>();
   const withinBudget = eligible.filter((e) => {
     const v = valuateCard(e, profile.spend);

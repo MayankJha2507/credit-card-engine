@@ -30,6 +30,8 @@ export interface RecommendationCase {
     allFeeFree?: boolean;
     /** The top match's fee must be zero after any waiver at this spend level. */
     topFeeSettled?: boolean;
+    /** No card may be dropped for its fee — the default asks for no ceiling. */
+    noFeeExclusions?: boolean;
     /** Objective outcome the calculation rules force. */
     objective?: { cardId: string; within: number; reason: string };
   };
@@ -122,6 +124,14 @@ export const recommendationCases: RecommendationCase[] = [
       // cards state caps without amounts, so their figures are upper bounds.
       topFeeSettled: true,
     }),
+
+  p('Y — Default profile: no fee ceiling, so a fee-charging card may win on value',
+    { online: 40000, dining: 15000, flights: 25000, hotels: 10000 }, ['reward_points'], 'any', false, 'not_important',
+    { ...BASE, noFeeExclusions: true }),
+
+  p('Z — A ceiling asked for on the results is still honoured',
+    { online: 40000, dining: 15000, flights: 25000, hotels: 10000 }, ['reward_points'], 'zero', false, 'not_important',
+    { ...BASE, allFeeFree: true }),
 
   p('X — Zero-fee shopper where a lifetime-free card must qualify', { online: 30000 }, ['cashback', 'low_annual_fee'], 'zero', false, 'not_important',
     {

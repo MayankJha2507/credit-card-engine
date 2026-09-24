@@ -54,6 +54,12 @@ const ROWS: Row[] = [
     ),
   },
   {
+    group: 'Value for your spending', label: 'Year one, after joining fee', better: 'higher',
+    num: (m) => m.valuation.firstYearValue,
+    key: (m) => String(m.valuation.firstYearValue),
+    render: (m) => `${m.valuation.isUpperBound ? 'Up to ' : ''}${formatINR(m.valuation.firstYearValue)}`,
+  },
+  {
     group: 'Value for your spending', label: 'Where it earns most', better: null,
     num: () => null, key: topCategories, render: topCategories,
   },

@@ -80,6 +80,11 @@ export function ResultCard({ match, rank }: { match: ScoredCard; rank: number })
           <dd className="num mt-1 text-lg font-semibold text-emerald-700">
             {valuation.isUpperBound ? 'Up to ' : ''}{formatINR(valuation.netAnnualValue)}
           </dd>
+          {valuation.joiningFee > 0 ? (
+            <dd className="num mt-0.5 text-xs text-ink-muted">
+              {formatINR(valuation.firstYearValue)} in year one, after the joining fee
+            </dd>
+          ) : null}
         </div>
       </dl>
 

@@ -1,5 +1,5 @@
 'use client';
-import { FEE_BAND_LABELS, FEE_BANDS, PRIORITIES, PRIORITY_LABELS, type FeeBand, type LoungeImportance, type Priority } from '@/lib/calculations/types';
+import { PRIORITIES, PRIORITY_LABELS, type LoungeImportance, type Priority } from '@/lib/calculations/types';
 import { cn } from '@/lib/utils';
 
 const LOUNGE_OPTIONS: Array<{ value: LoungeImportance; label: string }> = [
@@ -23,13 +23,12 @@ function Chip({ selected, children, onClick }: { selected: boolean; children: Re
 }
 
 export function PreferencesStep({
-  priorities, feeBand, internationalTravel, loungeImportance, onChange,
+  priorities, internationalTravel, loungeImportance, onChange,
 }: {
   priorities: Priority[];
-  feeBand: FeeBand;
   internationalTravel: boolean;
   loungeImportance: LoungeImportance;
-  onChange: (patch: Partial<{ priorities: Priority[]; feeBand: FeeBand; internationalTravel: boolean; loungeImportance: LoungeImportance }>) => void;
+  onChange: (patch: Partial<{ priorities: Priority[]; internationalTravel: boolean; loungeImportance: LoungeImportance }>) => void;
 }) {
   const toggle = (p: Priority) =>
     onChange({ priorities: priorities.includes(p) ? priorities.filter((x) => x !== p) : [...priorities, p] });
@@ -38,22 +37,15 @@ export function PreferencesStep({
     <div className="space-y-10">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">What matters most to you?</h2>
-        <p className="mt-2 text-sm text-ink-muted">Pick as many as apply. These only break ties between cards of similar value.</p>
+        <p className="mt-2 text-sm text-ink-muted">
+          Pick as many as apply. These only break ties between cards of similar value — including
+          &ldquo;Low annual fee&rdquo;, which favours fee-free cards without hiding a card that earns back its fee.
+        </p>
         <div className="mt-5 flex flex-wrap gap-2">
           {PRIORITIES.map((p) => (
             <Chip key={p} selected={priorities.includes(p)} onClick={() => toggle(p)}>{PRIORITY_LABELS[p]}</Chip>
           ))}
         </div>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold">Annual fee preference</h3>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {FEE_BANDS.map((b) => (
-            <Chip key={b} selected={feeBand === b} onClick={() => onChange({ feeBand: b })}>{FEE_BAND_LABELS[b]}</Chip>
-          ))}
-        </div>
-        <p className="mt-3 text-xs text-ink-muted">A card above your ceiling still qualifies if your spending meets its documented fee-waiver condition.</p>
       </div>
 
       <div className="grid gap-8 sm:grid-cols-2">

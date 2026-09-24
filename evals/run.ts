@@ -7,6 +7,7 @@
  */
 import 'dotenv/config';
 import { valuateCard } from '../lib/calculations/engine';
+import { FEE_BAND_MAX } from '../lib/calculations/types';
 import { recommend, type ScoredCard } from '../lib/recommendations/engine';
 import { calculationCases } from './calculation-cases';
 import { recommendationCases } from './recommendation-cases';
@@ -74,7 +75,6 @@ function hasLounge(m: ScoredCard) {
 function runRecommendationEvals() {
   if (!JSON_OUT) console.log('\n─── Recommendation evals ────────────────────────────────────');
   const entries = loadEntries();
-  const FEE_MAX: Record<string, number> = { zero: 0, under_1k: 999, '1k_5k': 5000, '5k_10k': 10000, '10k_plus': Infinity };
 
   for (const c of recommendationCases) {
     const before = failures.length;
@@ -86,7 +86,7 @@ function runRecommendationEvals() {
     if (e.maxMatches !== undefined) check(c.name, r.matches.length <= e.maxMatches, `${r.matches.length} matches exceeds ${e.maxMatches}`);
 
     if (e.respectsFeeBand) {
-      const ceiling = FEE_MAX[c.profile.feeBand];
+      const ceiling = FEE_BAND_MAX[c.profile.feeBand];
       for (const m of r.matches) {
         check(c.name, (m.card.annualFee ?? 0) <= ceiling || m.valuation.feeWaived,
           `${m.card.name} fee ₹${m.card.annualFee} is above the band and not waived`);
@@ -130,6 +130,10 @@ function runRecommendationEvals() {
     // The documented rule is that a card over the ceiling qualifies only when the
     // user's own spend settles its fee, so the property to assert is the fee they
     // would actually pay, not the sticker fee.
+    if (e.noFeeExclusions) {
+      const dropped = r.excluded.filter((x) => /above your stated preference/.test(x.reason));
+      check(c.name, dropped.length === 0, `${dropped.length} card(s) were dropped for their fee with no ceiling asked for`);
+    }
     if (e.allFeeFree) for (const m of r.matches) check(c.name, m.valuation.annualFeeAfterWaiver === 0, `${m.card.name} would still charge ${m.valuation.annualFeeAfterWaiver}`);
     if (e.topFeeSettled) {
       const top = r.matches[0];

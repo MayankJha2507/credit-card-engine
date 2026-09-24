@@ -11,7 +11,7 @@ export const userProfileSchema = z.object({
     z.ZodOptional<typeof amount>
   >),
   priorities: z.array(z.enum(PRIORITIES)).max(PRIORITIES.length).default([]),
-  feeBand: z.enum(FEE_BANDS),
+  feeBand: z.enum(FEE_BANDS).default('any'),
   internationalTravel: z.boolean().default(false),
   loungeImportance: z.enum(['not_important', 'nice_to_have', 'important']).default('not_important'),
 });

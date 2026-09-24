@@ -106,6 +106,11 @@ export function CalculationBreakdown({ valuation, cardName }: { valuation: CardV
             <p className="num mt-1 text-xs text-ink-muted">
               {formatINR(valuation.annualRewardValue)} rewards − {formatINR(valuation.annualFeeAfterWaiver)} fee − {formatINR(valuation.forexCost)} forex
             </p>
+            {valuation.joiningFee > 0 ? (
+              <p className="num mt-1 text-xs text-ink-muted">
+                Year one also carries the {formatINR(valuation.joiningFee)} joining fee → {formatINR(valuation.firstYearValue)}
+              </p>
+            ) : null}
             {valuation.hasUnmonetizableRewards ? (
               <p className="mt-2 text-xs text-amber-700">
                 Some rewards on this card could not be converted to rupees from verified sources, so they are not included above.
